@@ -1,0 +1,48 @@
+/* ===== iCampus D-Day badge styles (revised for contrast) ===== */
+
+/* Default (D+N, D-8↑) — 최소 강조 */
+.ic-dday-badge{
+  display:inline-block;
+  margin-left:8px;
+  padding:2px 8px;
+  border:1.5px solid #bfbfbf;
+  border-radius:999px;
+  background:#fff;
+  color:#333;
+  font-size:12px;
+  line-height:18px;
+  font-weight:600;
+  vertical-align:middle;
+  transition:background-color .15s,border-color .15s,color .15s,box-shadow .15s;
+}
+
+/* Info (D-7~D-4) — 약한 경고 */
+.ic-dday--info{
+  border-color:#e59a00;
+  border-width:2px;
+  color:#3d2a00;
+  background:transparent;
+  font-weight:650;
+  box-shadow:0 0 0 2px rgba(229,154,0,.08) inset;
+}
+
+/* Alert (D-3~D-1) — 강한 경고 */
+.ic-dday--alert{
+  background:#ffe3b0;
+  border-color:#d58600;
+  border-width:2.5px;        /* 두께 ↑ */
+  color:#201815;
+  font-weight:700;
+  letter-spacing:0.1px;
+}
+
+/* Today (D-0) — 최강 강조 */
+.ic-dday--today{
+  background:#ff9800;
+  border-color:#c77700;
+  border-width:3px;          /* 가장 두꺼움 */
+  color:#fff;
+  font-weight:800;
+  letter-spacing:0.3px;
+  text-transform:uppercase;
+}

@@ -1,0 +1,56 @@
+{
+  "manifest_version": 3,
+  "name": "Shimeji Sprite Walker",
+  "version": "1.2.6",
+  "description": "스프라이트 시트 기반 시메지",
+  "background": { "service_worker": "background.js" },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Cat Custom Shop"
+  },
+  "permissions": ["storage","scripting"],
+  "host_permissions": [
+    "https://canvas.skku.edu/*",
+    "https://canvas.skku.edu/dist/webpack-production/submit_assignment-*.js*"
+  ],
+  "icons": { "128": "icon.png" },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": [
+        "shimeji/script_watch.js",
+        "shimeji/config.js",
+        "shimeji/ground.js",
+        "shimeji/sprite.js",
+        "shimeji/color_ui.js",
+        "shimeji/boot.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://canvas.skku.edu/calendar*"],
+      "js": ["calendarUI.js"],
+      "css": ["calendarUI.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://canvas.skku.edu/*"],
+      "js": ["dashboardUI.js"],
+      "css": ["dashboardUI.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://canvas.skku.edu/*"],
+      "js": ["dday_badge.js"],
+      "css": ["dday_badge.css"],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": 
+  [
+    {
+      "resources": ["assets/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

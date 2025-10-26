@@ -1,0 +1,101 @@
+/* ===== SKKU Canvas Month Grouper (Accordion) Style ===== */
+
+.ic-accordion {
+  margin: 4px 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+}
+
+/* ===== Header ===== */
+.ic-acc-header {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #f8fafc;
+  border: 0;
+  cursor: pointer;
+  font-weight: 700;
+  line-height: 1.2;
+  box-sizing: border-box;
+  transition: background-color 0.15s ease;
+}
+.ic-acc-header.is-open { background: #eef2ff; }
+
+.ic-acc-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, .12);
+  display: inline-block;
+  flex: 0 0 auto;
+  margin-top: 3px;
+  transition: background-color .15s ease, border-color .15s ease;
+}
+
+.ic-acc-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ic-acc-header.is-open .ic-acc-title {
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.ic-acc-count {
+  font-size: 12px;
+  padding: 2px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #fff;
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+/* ===== Body ===== */
+.ic-acc-body {
+  padding: 4px 0;
+  background: #fff;
+}
+
+/* 아코디언 내부의 캘린더 이벤트 카드 */
+.ic-acc-body a.fc-day-grid-event {
+  margin: 3px 6px;
+  display: block;
+  pointer-events: auto;  /* 프록시 클릭 가능 */
+}
+
+/* 빈 셀 공백 줄이기 */
+td.fc-event-container:empty { padding: 0 !important; }
+
+/* ===== 프록시 관련 추가 ===== */
+
+/* 숨겨진 원본: DOM은 남기되 화면에서 감춤 */
+.ic-hidden-original {
+  display: none !important;
+}
+
+/* 혹시 상위 스타일에서 pointer-events:none 인 경우 방지 */
+.ic-accordion,
+.ic-acc-body,
+.ic-acc-header,
+.ic-acc-body a.fc-day-grid-event {
+  pointer-events: auto;
+}
+
+/* 살짝 hover 효과 */
+.ic-acc-header:hover {
+  background: #f1f5f9;
+}
