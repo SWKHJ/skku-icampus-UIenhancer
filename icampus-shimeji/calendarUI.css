@@ -1,5 +1,6 @@
-/* ===== SKKU Canvas Month Grouper (Accordion) Style ===== */
+/* calendarUI.css */
 
+/* 아코디언 전체 박스(과목 단위 묶음) */
 .ic-accordion {
   margin: 4px 0;
   border: 1px solid #e5e7eb;
@@ -8,7 +9,9 @@
   overflow: hidden;
 }
 
-/* ===== Header ===== */
+/* ===== Header =====
+   과목 색 점 / 제목 / 개수 배지를 가로 정렬.
+   닫힘: 1줄, 열림: 최대 2줄까지 제목 표시 */
 .ic-acc-header {
   width: 100%;
   display: flex;
@@ -26,6 +29,7 @@
 }
 .ic-acc-header.is-open { background: #eef2ff; }
 
+/* 과목 색 점: Canvas 이벤트 카드의 보더 색과 동기화 */
 .ic-acc-dot {
   width: 10px;
   height: 10px;
@@ -37,6 +41,7 @@
   transition: background-color .15s ease, border-color .15s ease;
 }
 
+/* 과목명: 닫힘은 한 줄로, 열림은 2줄까지 노출 */
 .ic-acc-title {
   flex: 1 1 auto;
   min-width: 0;
@@ -54,6 +59,7 @@
   line-clamp: 2;
 }
 
+/* 개수 배지 */
 .ic-acc-count {
   font-size: 12px;
   padding: 2px 6px;
@@ -64,30 +70,30 @@
   margin-top: 2px;
 }
 
-/* ===== Body ===== */
+/* ===== Body =====
+   프록시(복제) 이벤트 카드가 들어가는 영역 */
 .ic-acc-body {
   padding: 4px 0;
   background: #fff;
 }
 
-/* 아코디언 내부의 캘린더 이벤트 카드 */
+/* 프록시 카드 기본 간격과 클릭 가능 상태 */
 .ic-acc-body a.fc-day-grid-event {
   margin: 3px 6px;
   display: block;
   pointer-events: auto;  /* 프록시 클릭 가능 */
 }
 
-/* 빈 셀 공백 줄이기 */
+/* 비어 있는 캘린더 셀의 공백 줄이기(간격 정돈) */
 td.fc-event-container:empty { padding: 0 !important; }
 
-/* ===== 프록시 관련 추가 ===== */
-
-/* 숨겨진 원본: DOM은 남기되 화면에서 감춤 */
+/* ===== 프록시 관련 추가 =====
+   원본 이벤트 카드는 DOM에 남기되 화면에선 숨김(원본 핸들러 보존 목적) */
 .ic-hidden-original {
   display: none !important;
 }
 
-/* 혹시 상위 스타일에서 pointer-events:none 인 경우 방지 */
+/* 상위에서 pointer-events가 꺼진 경우를 대비해 아코디언 내는 항상 클릭 가능 */
 .ic-accordion,
 .ic-acc-body,
 .ic-acc-header,
@@ -95,7 +101,7 @@ td.fc-event-container:empty { padding: 0 !important; }
   pointer-events: auto;
 }
 
-/* 살짝 hover 효과 */
+/* 헤더 hover 시 미세한 피드백 */
 .ic-acc-header:hover {
   background: #f1f5f9;
 }
