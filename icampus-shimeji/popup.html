@@ -13,17 +13,14 @@
     <div class="points">Points: <span id="points">0</span></div>
   </header>
 
-  <!-- 탭: Shop / Timer (Statistics, Export는 주석 보관) -->
+  <!-- 탭 -->
   <nav class="tabs" role="tablist" aria-label="Popup Tabs">
-    <button id="tabShop"  data-tab="shop"  class="tab-btn active" aria-selected="true"  role="tab">Shop</button>
-    <button id="tabTimer" data-tab="timer" class="tab-btn"        aria-selected="false" role="tab">Timer</button>
-    <!--
-    <button id="tabStats"  data-tab="stats"  class="tab-btn" aria-selected="false" role="tab">Statistics</button>
-    <button id="tabExport" data-tab="export" class="tab-btn" aria-selected="false" role="tab">Export</button>
-    -->
+    <button id="tabShop"  data-tab="shop"     class="tab-btn active" aria-selected="true"  role="tab">Shop</button>
+    <button id="tabTimer" data-tab="timer"    class="tab-btn"        aria-selected="false" role="tab">Timer</button>
+    <button id="tabSettings" data-tab="settings" class="tab-btn"     aria-selected="false" role="tab">Settings</button>
   </nav>
 
-  <!-- ===== SHOP PANE ===== -->
+  <!-- ===== SHOP ===== -->
   <section id="pane-shop" class="pane is-active" role="tabpanel" aria-labelledby="tabShop">
     <section class="controls">
       <button id="add100">+100</button>
@@ -33,14 +30,13 @@
     <section class="grid" id="store" aria-live="polite"></section>
   </section>
 
-  <!-- ===== TIMER PANE ===== -->
+  <!-- ===== TIMER ===== -->
   <section id="pane-timer" class="pane" hidden role="tabpanel" aria-labelledby="tabTimer">
-    <!-- Timer 상단 미니 합계 -->
-<div class="mini-agg" aria-live="polite">
-  <span class="label">오늘 누적</span>
-  <span id="miniTotal">00:00:00</span>
-  <!-- 필요하면 포인트/주간 합계도 확장 가능: <span id="miniPts">0pt</span> -->
-</div>
+    <div class="mini-agg" aria-live="polite">
+      <span class="label">오늘 누적</span>
+      <span id="miniTotal">00:00:00</span>
+    </div>
+
     <section class="task">
       <label for="work">작업명(과목)</label>
       <input id="work" type="text" placeholder="예) 컴퓨터네트워크" autocomplete="off" />
@@ -49,8 +45,7 @@
     </section>
 
     <section class="timer" aria-live="polite">
-      <div id="display">00:00</div>
-      <!-- 진행 상태 배지 -->
+      <div id="display">00:00:00</div>
       <div id="pausedBadge" hidden class="badge"></div>
       <div class="controls">
         <button id="btnStart" class="btn-start">시작</button>
@@ -60,62 +55,112 @@
       <small id="modeHint">점수: 분당 0.1점 + 30분마다 +1</small>
     </section>
 
-
-<section class="today-items">
-  <div class="list-hdr">오늘의 항목</div>
-  <div id="todayItems"></div>
-</section>
+    <section class="today-items">
+      <div class="list-hdr">오늘의 항목</div>
+      <div id="todayItems"></div>
+    </section>
   </section>
 
-  <!-- ===== Statistics (보류, 모듈 전환 후 사용) =====
-  <section id="pane-stats" class="pane" hidden role="tabpanel" aria-labelledby="tabStats">
-    <div class="stats-tabs">
-      <button id="btnStatsDaily"  class="subtab-btn active">일일</button>
-      <button id="btnStatsWeekly" class="subtab-btn">주간</button>
-    </div>
+  <!-- ===== SETTINGS ===== -->
+  <section id="pane-settings" class="pane" hidden role="tabpanel" aria-labelledby="tabSettings">
+    <div class="settings">
+      <!-- A. 데이터 내보내기 -->
+      <h3 class="set-hdr">데이터 내보내기</h3>
 
-    <section id="dailyView" class="daily-view">
-      <div class="daily-header">
-        <input id="dailyDate" type="date" />
-        <div class="sum">
-          <span id="dailyTotalMin">0m</span> / <span id="dailyTotalPts">0pt</span>
+      <!-- 내보내기 유형 선택 (라디오 + 설명) -->
+      <div class="export-type">
+        <label class="radio-line">
+          <input type="radio" name="expType" id="modeRaw" checked />
+          <div>
+            <div class="radio-title">원시 세션 CSV</div>
+            <div class="radio-desc">
+              각 세션을 그대로 담은 원본 데이터.<br />
+              <b>컬럼:</b> task, detail, startISO, endISO, startLocal, endLocal, seconds, minutes, hh:mm:ss, mode
+            </div>
+          </div>
+        </label>
+
+        <label class="radio-line">
+          <input type="radio" name="expType" id="modeDaily" />
+          <div>
+            <div class="radio-title">일간 요약 CSV</div>
+            <div class="radio-desc">
+              날짜 기준으로 <b>작업명+내용</b> 묶음 합산.<br />
+              <b>컬럼:</b> date(로컬), task, detail, seconds, minutes, hh:mm:ss
+            </div>
+          </div>
+        </label>
+      </div>
+
+      <!-- 기간 + 내보내기 버튼 -->
+      <div class="export-row">
+        <div class="col">
+          <label class="lbl">시작일</label>
+          <input id="expStart" type="date" />
+        </div>
+        <div class="col">
+          <label class="lbl">종료일</label>
+          <input id="expEnd" type="date" />
+        </div>
+        <div class="col btncol">
+          <button id="btnExportGo" class="btn primary" title="선택된 유형으로 CSV를 저장합니다.">CSV 내보내기</button>
         </div>
       </div>
-      <div id="dailyList" class="daily-list"></div>
-    </section>
+      <p id="exportHint" class="hint">유형을 선택하고 기간을 지정한 뒤 <b>CSV 내보내기</b>를 누르면 다운로드됩니다.</p>
 
-    <section id="weeklyView" class="weekly-view" hidden>
-      <div class="weekly-header">
-        <button id="weekPrev" class="ghost" aria-label="이전 주">&lt;</button>
-        <div id="weekRange" class="week-range">YYYY-MM-DD ~ YYYY-MM-DD</div>
-        <button id="weekNext" class="ghost" aria-label="다음 주">&gt;</button>
+      <!-- B. 데이터 삭제 -->
+      <h3 class="set-hdr">데이터 삭제</h3>
+      <p class="hint warn">삭제는 되돌릴 수 없습니다. 필요하면 먼저 “데이터 내보내기”로 백업하세요.</p>
+
+      <div class="delete-row">
+        <label class="lbl">다음 기준보다 이전 세션 삭제</label>
+        <div class="delete-inputs">
+          <input id="daysOlder" type="number" min="1" step="1" value="180" placeholder="180" />
+          <span class="suffix">일 이전</span>
+          <button id="btnDeleteOlder" class="btn danger-outline">로그 삭제</button>
+        </div>
       </div>
-      <div id="weeklyBars" class="weekly-bars"></div>
-      <div class="legend">막대: 총 학습 분</div>
-    </section>
+
+      <div class="delete-all">
+        <button id="btnDeleteAll" class="btn danger" style="width:100%;">모든 로그 삭제</button>
+        <p id="deleteHint" class="hint"></p>
+      </div>
+
+      <!-- C. 정책 -->
+      <details class="accordion">
+        <summary>데이터 · 프라이버시 · 보관 정책</summary>
+        <div class="acc-body">
+          <ul class="bullet">
+            <li>모든 공부 기록은 <b>브라우저 로컬 저장소(chrome.storage.local)</b>에만 저장됩니다.</li>
+            <li>외부 서버로 전송·동기화하지 않습니다.</li>
+            <li>현재 정책상 <b>180일</b>이 지난 로그는 자동 정리됩니다. 필요 시 내보내기로 보관하세요.</li>
+          </ul>
+        </div>
+      </details>
+
+      <!-- D. 앱 정보 · 문의 -->
+      <details class="accordion">
+        <summary>앱 정보 · 문의</summary>
+        <div class="acc-body">
+          <ul class="bullet">
+            <li>버전: <span id="appVer">–</span></li>
+            <li>제작: Cat Custom Shop · Study Timer</li>
+            <li>문의: <a href="mailto:contact@example.com">contact@example.com</a></li>
+            <li>소스/이슈: <a href="https://github.com/your-repo" target="_blank" rel="noopener">GitHub</a></li>
+          </ul>
+        </div>
+      </details>
+    </div>
   </section>
-  -->
 
-  <!-- ===== Export (보류, 모듈 전환 후 사용) =====
-  <section id="pane-export" class="pane" hidden role="tabpanel" aria-labelledby="tabExport">
-    <section class="export-range">
-      <label>시작</label>
-      <input id="rangeStart" type="date" />
-      <label>끝</label>
-      <input id="rangeEnd" type="date" />
-      <button id="btnExportRange">CSV 내보내기</button>
-    </section>
-
-    <section class="export-clean">
-      <button id="btnPurgeOld" title="180일보다 오래된 기록을 CSV로 저장한 뒤 확장에서 삭제합니다.">
-        오래된 로그 내보내고 정리(180일)
-      </button>
-      <div id="purgeResult" class="purge-result"></div>
-    </section>
-  </section>
-  -->
-
-  <!-- 오케스트레이터: 탭 전환 + pane 모듈 지연 로드 -->
   <script type="module" src="popup.js"></script>
+  <script>
+    /* 설정 탭에서 버전 표기 (가능할 때만) */
+    try {
+      const m = chrome.runtime.getManifest?.();
+      const vEl = document.getElementById('appVer');
+      if (m?.version && vEl) vEl.textContent = m.version;
+    } catch {}
+  </script>
 </body>
 </html>

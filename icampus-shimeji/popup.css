@@ -3,6 +3,10 @@
    ========================================= */
 :root { color-scheme: light dark; }
 
+/* 폭 계산 안정화 (클리핑 방지) */
+html { box-sizing: border-box; }
+*, *::before, *::after { box-sizing: inherit; }
+
 html, body {
   margin: 0;
   padding: 0;
@@ -16,7 +20,7 @@ body {
   overflow-x: hidden;    /* 가로 스크롤 차단 */
 }
 
-/* 다크 모드 대비 보강 (최소 수정) */
+/* 다크 모드 대비 */
 @media (prefers-color-scheme: dark) {
   body { background: #111; color: #eaeaea; }
 
@@ -108,18 +112,15 @@ body {
   width:100%; padding:8px; border-radius:8px; border:1px solid #8883;
 }
 
-/* 입력 필드 폭 조정(팝업 폭 기준 중앙 정렬) */
-#pane-timer .task {
-  display: grid;
-  justify-content: center;
-}
+/* 입력 필드 폭 중앙 정렬 */
+#pane-timer .task { display:grid; justify-content:center; }
 #pane-timer .task input[type="text"] {
   width: min(92vw, 300px);
   box-sizing: border-box;
 }
 .mini-agg { display:flex; gap:.5rem; align-items:center; padding:.25rem .5rem; opacity:.9; }
 .mini-agg .label { font-weight:600; opacity:.8; }
-.mini-agg { max-width: 300px; margin: 0 auto .25rem; }
+.mini-agg { max-width:300px; margin:0 auto .25rem; }
 
 #pane-timer .timer { text-align:center; margin:10px 0; }
 #pane-timer #display {
@@ -151,7 +152,7 @@ button[disabled]{
 }
 
 /* 오늘 리스트(Accordion) */
-.today-items { padding: 8px 10px; border-top: 1px dashed #00000033; }
+.today-items { padding:8px 10px; border-top:1px dashed #00000033; }
 .list-hdr{ font-weight:700; margin-bottom:6px; opacity:.9; }
 
 .task-row{
@@ -170,41 +171,109 @@ button[disabled]{
 .task-row.parent { font-weight:600; padding-top:8px; cursor:pointer; }
 .task-row.child  { padding-left:16px; opacity:.95; }
 .task-row.child .task-detail { color:#cfcfcf; }
-.children.hidden { display: none; }
+.children.hidden { display:none; }
 
-/* =========================================
-   (보류) Statistics 탭 스타일
-   =========================================
-#pane-stats { padding:8px 10px; }
-.stats-tabs { display:flex; gap:8px; margin-bottom:8px; }
-.subtab-btn {
-  padding:6px 10px; border-radius:8px; border:1px solid #00000022; background:#0000; cursor:pointer;
+/* ===== Settings Pane ===== */
+#pane-settings .settings { padding:10px 12px; display:grid; gap:14px; } /* 우측 패딩 ↑ */
+.set-hdr { margin:2px 0 4px; font-weight:700; }
+
+/* (Settings 한정) 카드 프레임 */
+#pane-settings .card {
+  border:1px solid #00000022;
+  border-radius:10px;
+  padding:10px;
+  background:#0000;
 }
-.subtab-btn.active { background:#00000010; }
 
-.daily-header { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px; }
-.daily-view .sum { font-weight:700; }
-.daily-list { max-height: 250px; overflow:auto; border:1px solid #00000012; border-radius:8px; padding:6px; }
-.session-card { border:1px solid #00000012; border-radius:8px; padding:6px; margin-bottom:6px; display:grid; gap:4px; }
-.session-card .meta { font-size:12px; opacity:.8; }
+/* Export 타입 라디오 */
+.export-type { display:grid; gap:8px; }
+.radio, .radio-line {
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr); /* 텍스트 수축 허용 */
+  gap:10px;
+  align-items:start;
+  padding:8px;
+  border:1px solid #00000011;
+  border-radius:8px;
+  cursor:pointer;
+}
+.radio input, .radio-line input { margin-top:2px; }
+.radio-title { font-weight:700; }
+.radio-desc { font-size:12px; opacity:.9; word-break:break-word; overflow-wrap:anywhere; }
+.radio .dim { opacity:.7; }
 
-.weekly-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
-.ghost { background:#0000; border:1px solid #00000022; border-radius:8px; padding:4px 8px; cursor:pointer; }
-.week-range { font-weight:700; }
-.weekly-bars { display:grid; grid-template-columns: repeat(7, 1fr); gap:6px; align-items:end; height:120px; }
-.weekly-bars .bar { background:#3a86ff; border-radius:6px 6px 0 0; min-height:2px; position:relative; }
-.weekly-bars .bar .label { position:absolute; bottom:-18px; left:50%; transform:translateX(-50%); font-size:11px; opacity:.8; }
-.legend { margin-top:6px; font-size:12px; opacity:.8; }
-*/
+/* === Export: 기간 + 버튼 (세로 스택 레이아웃) === */
+.export-row{
+  display: grid;
+  grid-template-columns: 1fr;  /* 한 줄에 하나씩 */
+  row-gap: 10px;               /* 요소 간 간격 */
+  align-items: start;
+  padding: 6px 0 8px;
+}
 
-/* =========================================
-   (보류) Export 탭 스타일
-   =========================================
-#pane-export { padding:8px 10px; display:grid; gap:12px; }
-.export-range { display:grid; grid-template-columns:auto 1fr auto 1fr auto; gap:8px; align-items:center; }
-#pane-export input[type="date"] { width:100%; padding:6px 8px; border-radius:8px; border:1px solid #8883; }
-#btnExportRange { padding:8px 10px; border-radius:8px; border:1px solid #00000022; cursor:pointer; }
-.export-clean { display:grid; gap:6px; }
-#btnPurgeOld { padding:8px 10px; border-radius:8px; border:1px solid #c77; background:#fee; cursor:pointer; }
-.purge-result { font-size:12px; opacity:.85; }
-*/
+.export-row .col{
+  display: grid;
+  gap: 6px;                    /* 라벨 ↔ 인풋 간격 */
+}
+
+.export-row .lbl{
+  font-size: 12px;
+  opacity: .85;
+}
+
+/* 날짜 인풋: 폭·높이 통일 */
+.export-row input[type="date"]{
+  width: 100%;
+  padding: 10px;
+  height: 38px;
+  border-radius: 8px;
+  border: 1px solid #8883;
+  box-sizing: border-box;
+}
+
+/* 버튼은 맨 아래 한 줄 전체 차지 */
+.btncol{
+  display: block;
+}
+
+.btn{
+  display: inline-block;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-weight: 600;
+  white-space: nowrap;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.btn.primary { background: #3a86ff; color:#fff; border-color:#2a6fd1; }
+.btn.danger  { background: #ef476f; color:#fff; border-color:#c13a59; }
+.btn.outline { background: transparent; color: inherit; border-color:#00000033; }
+.btn:disabled{ opacity:.45; cursor:not-allowed; }
+
+/* 삭제 섹션 입력(일 수) 스타일도 통일 */
+.delete-inputs input[type="number"]{
+  width: 100%;
+  padding: 10px;
+  height: 38px;
+  border-radius: 8px;
+  border: 1px solid #8883;
+  box-sizing: border-box;
+}
+
+/* 삭제 버튼은 빨강 아웃라인로 더 또렷하게 */
+.btn.danger-outline{
+  background: transparent;
+  color: #ef476f;
+  border-color: #ef476f80;
+  transition: all .12s ease;
+}
+.btn.danger-outline:hover,
+.btn.danger-outline:focus{
+  background: #ef476f;
+  color: #fff;
+  border-color: #c13a59;
+}

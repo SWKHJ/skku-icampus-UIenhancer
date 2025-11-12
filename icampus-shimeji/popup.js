@@ -1,10 +1,11 @@
-// ===== popup.js (hardened storage + import retry + focus) =====
+// ===== popup.js (hardened storage + import retry + focus + settings pane wired) =====
 const $id = (id) => document.getElementById(id);
 const on  = (el, ev, fn) => el && el.addEventListener(ev, fn);
 
 const panes = {
-  shop:  { el: $id('pane-shop'),  mod: null },
-  timer: { el: $id('pane-timer'), mod: null },
+  shop:     { el: $id('pane-shop'),     mod: null },
+  timer:    { el: $id('pane-timer'),    mod: null },
+  settings: { el: $id('pane-settings'), mod: null }, // [NEW]
 };
 
 let current = null;
@@ -28,15 +29,19 @@ function showTab(key) {
 
 async function importPaneModule(key) {
   // 단순 재시도 1회
+  const load = async () => {
+    // [NEW] settings 분기 추가
+    if (key === 'shop')     return import('./popup/shop_pane.js');
+    if (key === 'timer')    return import('./popup/timer_pane.js');
+    if (key === 'settings') return import('./popup/settings_pane.js'); // [NEW]
+    // 방어: 알 수 없는 키면 타이머로 포백
+    return import('./popup/timer_pane.js');
+  };
   try {
-    return await (key === 'shop'
-      ? import('./popup/shop_pane.js')
-      : import('./popup/timer_pane.js'));
+    return await load();
   } catch (e) {
     // 아주 드물게 발생하는 초기 캐시 이슈용 재시도
-    return (key === 'shop'
-      ? import('./popup/shop_pane.js')
-      : import('./popup/timer_pane.js'));
+    return await load();
   }
 }
 
@@ -94,6 +99,7 @@ function bindTabs() {
   });
 }
 
+// 초기 탭 결정: timerPrefill가 있으면 timer, 없으면 마지막 탭(기본 shop)
 async function decideInitialTab() {
   try {
     const { timerPrefill } = await chrome.storage.session.get('timerPrefill');
@@ -106,6 +112,7 @@ async function decideInitialTab() {
   } catch { return 'shop'; }
 }
 
+// 백그라운드가 “Timer 탭 켜” 메시지 보낼 때
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg?.type === 'CAT_TIMER_ACTIVATE_TAB') activate('timer');
 });

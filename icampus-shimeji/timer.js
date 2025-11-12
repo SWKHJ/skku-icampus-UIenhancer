@@ -1,4 +1,4 @@
-// ===== timer.js (stable, HH:MM:SS, no live aggregation in UI) =====
+// ===== timer.js (stable, HH:MM:SS everywhere; no live aggregation in UI) =====
 const KEY    = 'studyTimer:v1';
 const MAX_MS = (99 * 60 + 59) * 1000; // 99분 59초 보호 한계
 
@@ -9,8 +9,8 @@ function defaultState() {
     running: false,
     startTimestamp: 0,
     offsetMs: 0,          // 일시중지까지 누적(ms)
-    elapsedMs: 0,         // (옵션: 오프스크린 하트비트용. UI는 사용하지 않음)
-    lastAliveAt: 0,
+    elapsedMs: 0,         // (오프스크린 하트비트가 매초 갱신; UI는 직접 사용하지 않음)
+    lastAliveAt: 0,       // 마지막 하트비트 시각(시계 점프 탐지 기준)
 
     // 메타
     work: '',
@@ -58,7 +58,7 @@ export async function setWorkDetail(work = '', detail = '') {
   });
 }
 
-/* ---------- 포맷터 (단위 명시형) ---------- */
+/* ---------- 포맷터 (단위 명시형; 전부 HH:MM:SS로 통일) ---------- */
 // ms → "HH:MM:SS"
 export function fmtHMS_ms(ms = 0) {
   const sec = Math.max(0, Math.floor((Number(ms) || 0) / 1000));
@@ -77,7 +77,7 @@ export function fmtHMS_sec(secInput = 0) {
   return [h, m, s].map(v => String(v).padStart(2, '0')).join(':');
 }
 
-// 하위 호환(기존 호출부가 많다면 임시로 유지). 기본을 ms로 간주.
+// 하위 호환(기존 호출부 임시 유지). 기본을 ms로 간주.
 export function fmtHMS(msOrSec) { return fmtHMS_ms(msOrSec); }
 export function fmtMMSS(ms)     { return fmtHMS_ms(ms); }
 
@@ -279,13 +279,29 @@ function csvEsc(s) {
   s = String(s);
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
-/* ---------- 시계 점프/자정 분할/스타트업 정산 ---------- */
 
+/* ---------- 삭제 유틸 ---------- */
+// N일 이전(종료 시각 기준) 로그 삭제
+export async function purgeLogsOlderThan(days = 180) {
+  const st = await getState();
+  const cutoff = Date.now() - Math.max(1, Number(days)||180) * 24*60*60*1000;
+  const kept = (st.logs || []).filter(l => (l?.end ?? 0) >= cutoff);
+  await setState({ ...st, logs: kept });
+}
+
+// 전체 로그 삭제
+export async function purgeAllLogs() {
+  const st = await getState();
+  await setState({ ...st, logs: [] });
+}
+
+
+/* ---------- 시계 점프/자정 분할/스타트업 정산 ---------- */
 /**
  * clampIfClockAnomaly(now)
- * - 시스템 시간이 과거로 급격히 이동했거나(수동 조정),
- *   running 중 startTimestamp가 now보다 미래가 되는 이상 상태를 정리한다.
- * - 여기서는 보수적으로 '미래로 가 있는 시작값'만 바로잡는다.
+ * - 시스템 시계가 과거/미래로 급격히 이동했을 때 음수 경과가 생기지 않도록
+ *   startTimestamp가 now보다 미래면 now로 당겨 보정.
+ * - lastAliveAt은 슬립/웨이크 체크 기준점으로 갱신.
  */
 export async function clampIfClockAnomaly(now = Date.now()) {
   const st = await getState();
@@ -302,15 +318,17 @@ export async function clampIfClockAnomaly(now = Date.now()) {
     return false;
   }
 
-  // 기준점 갱신(경고성 의미. 과도한 보정은 지양)
+  // 기준점 갱신(경고성 로깅 위치—필요시 console.warn 추가 가능)
   await setState({ lastAliveAt: now });
   return false;
 }
 
 /**
  * splitIfCrossedMidnight(now)
- * - running 세션이 자정 경계를 넘었으면, 경계 이전 구간을 하나의 로그로 확정하고
- *   00:00부터 이어서 달리게 분할한다. offsetMs는 이전 파트에 귀속.
+ * - running 세션이 자정 경계를 넘겼으면, 경계 이전 구간을 하나의 로그로 확정하고
+ *   동일 작업을 00:00부터 계속 진행(startTimestamp=boundary)하도록 분할.
+ * - offsetMs(일시중지로 누적된 구간)는 “현재 running 블록의 과거 구간”이므로
+ *   경계 이전 파트로 귀속시키고 0으로 초기화.
  */
 export async function splitIfCrossedMidnight(now = Date.now()) {
   const st = await getState();
@@ -321,7 +339,7 @@ export async function splitIfCrossedMidnight(now = Date.now()) {
   today0.setHours(0, 0, 0, 0);
   const boundary = today0.getTime();
 
-  // 시작이 오늘 00:00 이전이면 분할
+  // 시작시각이 오늘 00:00 이전이면 분할 필요
   if (st.startTimestamp < boundary) {
     const elapsedFirst = Math.max(0, (boundary - st.startTimestamp) + (st.offsetMs || 0));
 
@@ -330,6 +348,7 @@ export async function splitIfCrossedMidnight(now = Date.now()) {
       const minutes = seconds / 60;
       const points  = calcPoints(minutes, st.mode, { linearPerMin: st.linearPerMin });
 
+      // (end - length)로 start 역산
       const end1   = boundary;
       const start1 = end1 - elapsedFirst;
 
@@ -346,8 +365,8 @@ export async function splitIfCrossedMidnight(now = Date.now()) {
 
       await setState({
         logs: [...(st.logs || []), log1],
-        startTimestamp: boundary, // 경계부터 이어서 진행
-        offsetMs: 0,              // 이전 파트에 귀속
+        startTimestamp: boundary, // 경계부터 계속
+        offsetMs: 0,              // 과거 파트로 귀속했으므로 초기화
       });
       return true;
     }
@@ -357,10 +376,10 @@ export async function splitIfCrossedMidnight(now = Date.now()) {
 
 /**
  * settleOnStartup()
- * - 브라우저/확장 재시작 시 상태 정상화:
- *   1) 시계 이상치 보정(clamp)
- *   2) 자정 경계 분할(추가 안전망)
- *   3) 과다 경과 보호(99:59 상한)
+ * - 브라우저/확장 재시작 시 상태를 정상화:
+ *   1) 클록 보정(clampIfClockAnomaly)
+ *   2) 자정 분할(splitIfCrossedMidnight)
+ *   3) 상한 보호(forceStopIfExceeded)
  */
 export async function settleOnStartup() {
   const now = Date.now();
