@@ -8,6 +8,9 @@ const off = (el, ev, fn) => el && el.removeEventListener(ev, fn);
 // CHG: 포인트는 전부 background 권위 경로로 호출
 import { Points, bindBalanceUpdates } from '../shimeji/points_client.js';
 
+/** 디버그 모드: true 일 때만 +100 / -100 / 초기화 버튼 노출·동작 */
+const DEBUG_SHOP_POINTS = false;
+
 /* Storage / Items (포인트 제외한 상점 상태만 로컬에 저장) */
 const STORE_KEY = 'shimeji_store_v1';
 
@@ -18,7 +21,7 @@ const DEFAULT_STATE = {
   activeColorPreset: null,
   // 커스텀 컬러 툴
   unlockedTools: { color_tool: false },
-  // [NEW] 악세서리 소유/장착 상태
+  // 악세서리 소유/장착 상태
   ownedAccessories: {
     ribbon_red: false,
     hat_blue:  false
@@ -32,7 +35,7 @@ const DEFAULT_STATE = {
 // 모든 카드 썸네일은 동일 이미지 재사용 (개별 이미지도 가능)
 const THUMB = 'assets/Thumbnail.png';
 
-// [NEW] 악세서리 전용 썸네일 (없으면 THUMB 재사용해도 됨)
+// 악세서리 전용 썸네일 (없으면 THUMB 재사용해도 됨)
 const RIBBON_IMG = 'assets/accessories/acc_ribbon_red.png';
 const HAT_IMG    = 'assets/accessories/acc_hat_blue.png';
 
@@ -74,7 +77,7 @@ async function loadState() {
   // 툴 보정
   st.unlockedTools = { color_tool: !!st.unlockedTools?.color_tool };
 
-  // [NEW] 악세서리 소유/장착 보정
+  // 악세서리 소유/장착 보정
   st.ownedAccessories = {
     ribbon_red: !!st.ownedAccessories?.ribbon_red,
     hat_blue:   !!st.ownedAccessories?.hat_blue
@@ -88,7 +91,7 @@ async function loadState() {
 }
 
 async function saveState(st) {
-  // CHG: 포인트 필드를 절대 넣지 않도록 방어
+  // 포인트 필드를 절대 넣지 않도록 방어
   const {
     owned,
     activeColorPreset,
@@ -126,7 +129,7 @@ function applyToActiveTab(preset) {
   });
 }
 
-// [NEW] 악세서리 장착 정보 브로드캐스트
+// 악세서리 장착 정보 브로드캐스트
 function applyAccessoriesToActiveTab(equippedAccessories) {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     const tab = tabs?.[0]; if (!tab?.id) return;
@@ -306,41 +309,53 @@ export async function initPane(rootEl) {
   btnReset    = root.querySelector('#resetShop');
   pointsLabel = document.querySelector('#points');
 
-  // 실시간 포인트 갱신 바인딩
+  // 디버그 컨트롤 래퍼
+  const debugWrap = root.querySelector('#debugControls');
+
+  // 플래그가 꺼져 있으면 아예 숨김
+  if (!DEBUG_SHOP_POINTS && debugWrap) {
+    debugWrap.style.display = 'none';
+  }
+
+  // 실시간 포인트 갱신 바인딩 (디버그 여부와 무관)
   const unbind = bindBalanceUpdates((b) => updatePointsLabel(b));
   bound.push({ el: null, ev: 'POINTS_UPDATED', fn: unbind }); // destroyPane에서 호출 용도
 
-  // 디버그/관리용 버튼
-  const onAdd = async () => {
-    const r = await Points.earn(100, 'debug:add100');
-    if (!r.ok) alert(`증가 실패: ${r.reason || 'unknown'}`);
-    await renderStore();
-  };
-  const onSub = async () => {
-    const r = await Points.spend(100, 'debug:sub100');
-    if (!r.ok) {
-      alert(r.reason === 'insufficient'
-        ? '포인트가 부족합니다.'
-        : `감소 실패: ${r.reason || 'unknown'}`);
-    }
-    await renderStore();
-  };
-  const onReset = async () => {
-    // 상점 상태만 초기화(포인트는 권위 경로 유지)
-    const st = { ...DEFAULT_STATE };
-    await saveState(st);
-    applyToActiveTab(BASE_PRESET);
-    applyAccessoriesToActiveTab(st.equippedAccessories);
-    await renderStore();
+  // 디버그/관리용 버튼은 플래그가 true일 때만 활성화
+  if (DEBUG_SHOP_POINTS && debugWrap && btnAdd && btnSub && btnReset) {
+    const onAdd = async () => {
+      const r = await Points.earn(100, 'debug:add100');
+      if (!r.ok) alert(`증가 실패: ${r.reason || 'unknown'}`);
+      await renderStore();
+    };
 
-    // 포인트까지 0으로 초기화 (디버그용)
-    const bal = await Points.get();
-    if (bal > 0) await Points.spend(bal, 'reset:toZero');
-  };
+    const onSub = async () => {
+      const r = await Points.spend(100, 'debug:sub100');
+      if (!r.ok) {
+        alert(r.reason === 'insufficient'
+          ? '포인트가 부족합니다.'
+          : `감소 실패: ${r.reason || 'unknown'}`);
+      }
+      await renderStore();
+    };
 
-  on(btnAdd,   'click', onAdd);   bound.push({ el: btnAdd,  ev:'click', fn:onAdd });
-  on(btnSub,   'click', onSub);   bound.push({ el: btnSub,  ev:'click', fn:onSub });
-  on(btnReset, 'click', onReset); bound.push({ el: btnReset,ev:'click', fn:onReset });
+    const onReset = async () => {
+      // 상점 상태만 초기화(포인트는 권위 경로 유지)
+      const st = { ...DEFAULT_STATE };
+      await saveState(st);
+      applyToActiveTab(BASE_PRESET);
+      applyAccessoriesToActiveTab(st.equippedAccessories);
+      await renderStore();
+
+      // 포인트까지 0으로 초기화 (디버그용)
+      const bal = await Points.get();
+      if (bal > 0) await Points.spend(bal, 'reset:toZero');
+    };
+
+    on(btnAdd,   'click', onAdd);   bound.push({ el: btnAdd,  ev:'click', fn:onAdd });
+    on(btnSub,   'click', onSub);   bound.push({ el: btnSub,  ev:'click', fn:onSub });
+    on(btnReset, 'click', onReset); bound.push({ el: btnReset,ev:'click', fn:onReset });
+  }
 
   await renderStore();
 }
