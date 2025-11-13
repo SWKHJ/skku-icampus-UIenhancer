@@ -139,12 +139,26 @@ function makeCard(item, st, rerender) {
 /* Render store grid */
 async function renderStore() {
   if (!storeGrid) return;
-  const st = await loadState();
-  // CHG: 포인트 표시는 권위 경로에서 조회
-  updatePointsLabel(await Points.get());
+
+  // 먼저 그리드 비우기
   storeGrid.innerHTML = '';
+
+  // 1) 상점 상태 로드 (포인트와 독립)
+  const st = await loadState();
+
+  // 2) 포인트 조회는 try/catch로 감싸서, 실패해도 UI가 깨지지 않게
+  let balance = 0;
+  try {
+    balance = await Points.get();
+  } catch (e) {
+    console.warn('[Shop] Points.get 실패, 0으로 폴백합니다.', e);
+  }
+  updatePointsLabel(balance);
+
+  // 3) 아이템 카드 렌더링
   ITEMS.forEach((it) => storeGrid.appendChild(makeCard(it, st, renderStore)));
 }
+
 
 /* Public API */
 export async function initPane(rootEl) {
@@ -181,9 +195,9 @@ export async function initPane(rootEl) {
     applyToActiveTab(BASE_PRESET);
     await renderStore();
 
-    // CHG(옵션): 포인트도 0으로 초기화하고 싶다면 주석 해제
-    // const bal = await Points.get();
-    // if (bal > 0) await Points.spend(bal, 'reset:toZero');
+    // 포인트까지 0으로 초기화 (디버그용)
+    const bal = await Points.get();
+    if (bal > 0) await Points.spend(bal, 'reset:toZero');
   };
 
   on(btnAdd,   'click', onAdd);   bound.push({ el: btnAdd,  ev:'click', fn:onAdd });

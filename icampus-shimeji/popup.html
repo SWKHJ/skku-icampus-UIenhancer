@@ -154,13 +154,6 @@
   </section>
 
   <script type="module" src="popup.js"></script>
-  <script>
-    /* 설정 탭에서 버전 표기 (가능할 때만) */
-    try {
-      const m = chrome.runtime.getManifest?.();
-      const vEl = document.getElementById('appVer');
-      if (m?.version && vEl) vEl.textContent = m.version;
-    } catch {}
-  </script>
+  
 </body>
 </html>

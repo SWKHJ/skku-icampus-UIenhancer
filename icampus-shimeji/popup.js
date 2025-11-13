@@ -140,9 +140,19 @@ chrome.runtime.onMessage.addListener((msg) => {
   if (msg?.type === 'CAT_TIMER_ACTIVATE_TAB') activate('timer');
 });
 
+function initVersionLabel() {
+  try {
+    const m   = chrome.runtime.getManifest?.();
+    const vEl = document.getElementById('appVer');
+    if (m?.version && vEl && m?.version) vEl.textContent = m.version;
+  } catch {}
+}
+
+
 async function boot() {
   bindTabs();
   await initHeaderPoints();           // [NEW] 헤더 포인트 먼저 동기화
+  initVersionLabel();       
   const initial = await decideInitialTab();
   await activate(initial);
 }
