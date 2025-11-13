@@ -3,11 +3,18 @@ console.log('[Shimeji] sprite loaded');
 
 window.Shimeji = window.Shimeji || {};
 
+// config 에서 악세서리 정의 가져오기 (없으면 빈 객체)
+const ACCESSORY_CONF =
+  (window.Shimeji.conf && window.Shimeji.conf.accessories) || {};
+
+// 슬롯 목록 (neck, head 확장 가능)
+const ACCESSORY_SLOTS = ['neck', 'head'];
+
 class Sprite {
   constructor(conf, motion) {
     this.conf = conf;
     this.motion = motion;
-    this.state = 'walk'; // 'walk' | 'sit'
+    this.state = 'walk'; // 'walk' | 'sit' | 'jump'
 
     this.root = document.createElement('div');
     this.root.className = 'shimeji-sprite';
@@ -26,6 +33,22 @@ class Sprite {
       willChange: 'transform, left, top, background-position'
     });
     document.body.appendChild(this.root);
+
+    // ----- 악세서리 레이어 -----
+    this.accLayer = document.createElement('div');
+    Object.assign(this.accLayer.style, {
+      position: 'absolute',
+      left: '0',
+      top: '0',
+      width: '100%',
+      height: '100%',
+      pointerEvents: 'none',
+      overflow: 'visible'
+    });
+    this.root.appendChild(this.accLayer);
+
+    // 슬롯별 dom/정의 저장: this.accessories[slot] = { el, def }
+    this.accessories = {};
 
     // 초기 상태
     this.x = Math.max(20, Math.min(innerWidth - conf.frameW - 20, 200));
@@ -48,9 +71,106 @@ class Sprite {
     this.DRAG_THRESH_PX = 6;
     this.CLICK_TIME_MS = 250;
 
+    // 현재 전역 장착 상태 기반으로 악세서리 구성
+    this.refreshAccessories();
+
     this.updateFrame(0);
     this.attachEvents();
   }
+
+  // ---- 악세서리 관련 유틸 ----
+
+  // 현재 상태에 맞는 frameW/frameH 반환
+  getCurrentFrameSize() {
+    if (this.state === 'jump' && this.conf.jframeW && this.conf.jframeH) {
+      return { w: this.conf.jframeW, h: this.conf.jframeH };
+    }
+    return { w: this.conf.frameW, h: this.conf.frameH };
+  }
+
+  // sprite 외부에서 Shimeji.activeAccessories 를 갱신해두면,
+  // 이 메서드를 호출해서 슬롯들을 다시 구성할 수 있다.
+  refreshAccessories() {
+    const active = (window.Shimeji && window.Shimeji.activeAccessories) || {};
+
+    // 기존 DOM 제거
+    Object.values(this.accessories).forEach(({ el }) => el.remove());
+    this.accessories = {};
+
+    for (const slot of ACCESSORY_SLOTS) {
+      const id = active[slot];
+      if (!id) continue;
+      const def = ACCESSORY_CONF[id];
+      if (!def) continue;
+
+      const img = document.createElement('img');
+      img.src = def.img;
+      img.alt = def.id;
+      Object.assign(img.style, {
+        position: 'absolute',
+        pointerEvents: 'none'
+      });
+
+      // 크기는 정의된 width/height 있으면 사용, 아니면 기본값
+      const w = def.width || 60;
+      const h = def.height || 60;
+      img.style.width = `${w}px`;
+      img.style.height = `${h}px`;
+
+      this.accLayer.appendChild(img);
+      this.accessories[slot] = { el: img, def };
+    }
+
+    // 구성 후 한 번 위치 갱신
+    this.updateAccessoryLayout();
+  }
+
+  // 현재 state / flip 에 맞게 악세서리 위치 갱신
+  updateAccessoryLayout() {
+    if (!this.accessories) return;
+
+    const stateKey =
+      this.state === 'sit' ? 'sit' :
+      this.state === 'jump' ? 'jump' :
+      'walk';
+
+    const { w: frameW, h: frameH } = this.getCurrentFrameSize();
+
+    for (const slot of Object.keys(this.accessories)) {
+      const { el, def } = this.accessories[slot];
+      if (!el || !def) continue;
+
+      const anchorAll = def.anchor || {};
+      const stateAnchor = anchorAll[stateKey] || anchorAll.walk;
+      if (!stateAnchor) continue;
+
+      // flip 방향에 따라 left / right 중 하나 선택
+      const dirKey = this.flip < 0 ? 'left' : 'right';
+      const anchorDir =
+        stateAnchor[dirKey] ||
+        stateAnchor.center ||     // 혹시 center 같은 걸 쓸 수도 있으니 폴백
+        stateAnchor.left ||
+        stateAnchor.right;
+
+      if (!anchorDir) continue;
+
+      const accW = def.width || el.offsetWidth || 40;
+      const accH = def.height || el.offsetHeight || 40;
+
+      // 정규화 anchor 를 실제 픽셀로 변환
+      const baseX = anchorDir.x * frameW;
+      const baseY = anchorDir.y * frameH;
+
+      // 중앙 정렬
+      const left = baseX - accW / 2;
+      const top  = baseY - accH / 2;
+
+      el.style.left = `${left}px`;
+      el.style.top  = `${top}px`;
+    }
+  }
+
+  // ---- 기존 로직 ----
 
   toggleSit() { this.state = (this.state === 'sit' ? 'walk' : 'sit'); }
 
@@ -106,47 +226,47 @@ class Sprite {
   }
 
   updateFrame(dt) {
-    if (this.state === 'walk'|| this.state === 'jump') 
-    {
-        this.accum += dt;
-        const spf = 1 / this.conf.fps;
-        while (this.accum >= spf) 
-        {
-            this.accum -= spf;
+    if (this.state === 'walk'|| this.state === 'jump') {
+      this.accum += dt;
+      const spf = 1 / this.conf.fps;
+      while (this.accum >= spf) {
+        this.accum -= spf;
 
-            if(this.state === 'walk')
-            {
-                this.frame = (this.frame + 1) % this.conf.frames;
-                const col = this.frame % this.conf.cols;
-                const row = Math.floor(this.frame / this.conf.cols);
-                const bx = -col * this.conf.frameW;
-                const by = -row * this.conf.frameH;
-                this.root.style.backgroundPosition = `${bx}px ${by}px`;
-            }
-            else if(this.state === 'jump')
-            {
-                this.frame = (this.frame + 1) % this.conf.jframes;
-                const col = this.frame % this.conf.jcols;
-                const row = Math.floor(this.frame / this.conf.jcols);
-                const bx = -col * this.conf.jframeW;
-                const by = -row * this.conf.jframeH;
-                this.root.style.backgroundPosition = `${bx}px ${by}px`;
-            }
+        if(this.state === 'walk') {
+          this.frame = (this.frame + 1) % this.conf.frames;
+          const col = this.frame % this.conf.cols;
+          const row = Math.floor(this.frame / this.conf.cols);
+          const bx = -col * this.conf.frameW;
+          const by = -row * this.conf.frameH;
+          this.root.style.backgroundPosition = `${bx}px ${by}px`;
+        }
+        else if(this.state === 'jump') {
+          this.frame = (this.frame + 1) % this.conf.jframes;
+          const col = this.frame % this.conf.jcols;
+          const row = Math.floor(this.frame / this.conf.jcols);
+          const bx = -col * this.conf.jframeW;
+          const by = -row * this.conf.jframeH;
+          this.root.style.backgroundPosition = `${bx}px ${by}px`;
+        }
       }
-    } 
-    else if (this.state === 'sit') 
-    {
-      // sit: 5x5 기준 (0,4) 프레임 예시
+    }
+    else if (this.state === 'sit') {
       const bx = 0;
       const by = -4 * this.conf.frameH;
       this.root.style.backgroundPosition = `${bx}px ${by}px`;
     }
+
+    // 프레임/상태 변경 후 악세서리 위치도 한 번 갱신
+    this.updateAccessoryLayout();
   }
 
   applyTransform() {
     this.root.style.left = `${this.x}px`;
     this.root.style.top  = `${this.y}px`;
     this.root.style.transform = `scaleX(${this.flip})`;
+
+    // 좌우 flip / 위치 변경 후에도 레이아웃 업데이트
+    this.updateAccessoryLayout();
   }
 
   step(dt) {
@@ -209,8 +329,17 @@ class Sprite {
     this.updateFrame(dt);
   }
 
-  destroy() { this.root.remove(); }
+  destroy() {
+    if (this.accLayer) this.accLayer.remove();
+    this.root.remove();
+  }
 }
 
 // 외부 노출
 Shimeji.Sprite = Sprite;
+
+// 전역에서 장착 상태 바뀔 때 호출해 쓰라고 helper 하나 추가
+Shimeji.refreshAccessoriesAll = function() {
+  if (!Shimeji.sprites) return;
+  Shimeji.sprites.forEach(s => s.refreshAccessories && s.refreshAccessories());
+};

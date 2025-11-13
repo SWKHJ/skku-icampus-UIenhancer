@@ -33,10 +33,19 @@
     return st;
   }
   async function saveShop(st) {
-    // CHG: 포인트 필드가 들어가지 않도록 방어적으로 필터링
-    const { _meta, owned, activeColorPreset, unlockedTools } = st;
-    await chrome.storage?.local.set({ [STORE_KEY]: { _meta, owned, activeColorPreset, unlockedTools } });
-  }
+  // _meta 만 업데이트하고, 나머지 필드(ownedAccessories 등)는 그대로 보존
+  const obj  = await chrome.storage?.local.get(STORE_KEY);
+  const prev = obj?.[STORE_KEY] || {};
+
+  const next = {
+    ...prev,
+    _meta: st._meta || prev._meta || {}
+    // owned, activeColorPreset, unlockedTools,
+    // ownedAccessories, equippedAccessories 등은 prev 그대로 유지
+  };
+
+  await chrome.storage?.local.set({ [STORE_KEY]: next });
+}
 
   async function loadDebugFlags() {
     const obj = await chrome.storage?.local.get(DEBUG_KEY);

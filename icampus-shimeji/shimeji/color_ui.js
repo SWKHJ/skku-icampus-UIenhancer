@@ -3,37 +3,63 @@ console.log('[Cat] color UI loaded');
 
 window.Shimeji = window.Shimeji || {};
 
-const STORE_KEY = '__cat_color_ui_v1';      // 이 파일(패널)이 쓰는 로컬 상태
-const SHOP_STORE_KEY = 'shimeji_store_v1';  // 상점 상태 (points/owned/activeColorPreset/unlockedTools)
+const STORE_KEY      = '__cat_color_ui_v1';    // 이 파일(패널)이 쓰는 로컬 상태
+const SHOP_STORE_KEY = 'shimeji_store_v1';     // 상점 상태 (presets / tools / accessories)
 
+// =============================
+// 1) 로컬 색상 패널 상태
+// =============================
 const defaults = {
   hue: 0, sat: 120, bri: 100, con: 100, opa: 100,
   x: 24, y: 24, open: false  // 기본은 닫혀있음
 };
 
-// --- 상태 로드/저장 (localStorage) ---
 const load = () => {
-  try { return Object.assign({}, defaults, JSON.parse(localStorage.getItem(STORE_KEY) || '{}')); }
-  catch { return { ...defaults }; }
+  try {
+    return Object.assign({}, defaults, JSON.parse(localStorage.getItem(STORE_KEY) || '{}'));
+  } catch {
+    return { ...defaults };
+  }
 };
 const save = (st) => localStorage.setItem(STORE_KEY, JSON.stringify(st));
 
-// --- 스프라이트 전부에 CSS 필터 적용 ---
+// =============================
+// 2) 스프라이트에 색상 / 악세서리 적용 헬퍼
+// =============================
+
+// --- 색상 필터 ---
 const applyFilters = (st) => {
   const filter = `hue-rotate(${st.hue}deg) saturate(${st.sat}%) brightness(${st.bri}%) contrast(${st.con}%)`;
   document.querySelectorAll('.shimeji-sprite').forEach(el => {
-    el.style.filter = filter;
-    el.style.opacity = (st.opa/100).toString();
+    el.style.filter  = filter;
+    el.style.opacity = (st.opa / 100).toString();
   });
 };
 
-// --- 패널 슬라이더 표시값을 상태와 동기화 ---
+// --- 악세서리 적용: sprite.js 구조에 맞게 전역 상태 + 리프레시 ---
+function applyAccessoriesToSprites(accState) {
+  // accState: { head: string|null, neck: string|null }
+  window.Shimeji = window.Shimeji || {};
+
+  // sprite.js 의 refreshAccessories() 가 읽는 전역 상태
+  window.Shimeji.activeAccessories = accState || {};
+
+  // sprite.js 가 등록한 헬퍼가 있으면, 이미 떠 있는 스프라이트들에 즉시 반영
+  if (typeof window.Shimeji.refreshAccessoriesAll === 'function') {
+    window.Shimeji.refreshAccessoriesAll();
+  }
+}
+
+// =============================
+// 3) 패널 슬라이더 ↔ 상태 동기화
+// =============================
 function syncPanelSlidersTo(st) {
   const panel = document.querySelector('.shimeji-color-panel');
   if (!panel) return;
+
   const sync = (k) => {
     const inp = panel.querySelector(`input[data-k="${k}"]`);
-    const v = st[k];
+    const v   = st[k];
     if (!inp) return;
     inp.value = v;
     const out = inp.parentElement?.querySelector('.v');
@@ -42,24 +68,29 @@ function syncPanelSlidersTo(st) {
   ['hue','sat','bri','con','opa'].forEach(sync);
 }
 
-// --- 상점의 프리셋을 적용(저장/필터/슬라이더 동기화) ---
+// 상점 프리셋 → 색상/패널에 반영
 function applyPresetFromShop(preset) {
   if (!preset) return;
   const st = load();
-  st.hue = preset.hue; st.sat = preset.sat; st.bri = preset.bri; st.con = preset.con; st.opa = preset.opa;
+  st.hue = preset.hue;
+  st.sat = preset.sat;
+  st.bri = preset.bri;
+  st.con = preset.con;
+  st.opa = preset.opa;
   save(st);
   applyFilters(st);
   syncPanelSlidersTo(st);
 }
 
-// --- 패널 DOM 생성 (처음엔 숨김) ---
+// =============================
+// 4) 패널 DOM 생성
+// =============================
 function buildPanel() {
-  const st = load();
+  const st    = load();
   const panel = document.createElement('div');
   panel.className = 'shimeji-color-panel';
   panel.style.display = 'none';
 
-  // 내부 UI
   panel.innerHTML = `
     <div class="scp-header">🎨 Custom Cat Color <span class="scp-actions">
       <button data-act="reset" title="Reset">↺</button>
@@ -73,11 +104,10 @@ function buildPanel() {
     <div class="scp-foot">Drag here · Ctrl+Shift+C toggle</div>
   `;
 
-  // 패널 스타일
   Object.assign(panel.style, {
     position: 'fixed',
     left: (st.x || 24) + 'px',
-    top: (st.y || 24) + 'px',
+    top:  (st.y || 24) + 'px',
     zIndex: 2147483647,
     width: '260px',
     background: 'rgba(24,24,28,0.92)',
@@ -91,7 +121,6 @@ function buildPanel() {
     userSelect: 'none'
   });
 
-  // 중복 스타일 삽입 방지
   if (!document.querySelector('#__cat_color_ui_style')) {
     const style = document.createElement('style');
     style.id = '__cat_color_ui_style';
@@ -108,11 +137,11 @@ function buildPanel() {
 
   document.body.appendChild(panel);
 
-  // --- 슬라이더 변경 시 즉시 반영 ---
+  // 슬라이더 → 상태
   panel.querySelectorAll('input[type="range"]').forEach(inp => {
     inp.addEventListener('input', () => {
-      const k = inp.dataset.k;
-      const v = Number(inp.value);
+      const k   = inp.dataset.k;
+      const v   = Number(inp.value);
       const cur = load();
       cur[k] = v;
       save(cur);
@@ -122,7 +151,7 @@ function buildPanel() {
     });
   });
 
-  // --- Reset / Close 버튼 (드래그와 충돌 방지) ---
+  // Reset / Close
   const onAction = (act, ev) => {
     ev?.stopPropagation();
     ev?.preventDefault();
@@ -139,20 +168,20 @@ function buildPanel() {
     }
   };
   panel.querySelector('button[data-act="reset"]').addEventListener('click', (e)=> onAction('reset', e));
-  panel.querySelector('button[data-act="close"]').addEventListener('click', (e)=> onAction('close', e));
+  panel.querySelector('button[data-act="close"]').addEventListener('click',  (e)=> onAction('close', e));
 
-  // --- 드래그 이동 (버튼 클릭 시 드래그 금지) ---
+  // 드래그 이동
   const header = panel.querySelector('.scp-header');
   let drag = null;
   header.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('button[data-act]')) return; // 버튼이면 드래그 시작 금지
+    if (e.target.closest('button[data-act]')) return;
     drag = { ox: e.clientX - panel.offsetLeft, oy: e.clientY - panel.offsetTop };
     header.setPointerCapture?.(e.pointerId);
     header.style.cursor = 'grabbing';
   });
   header.addEventListener('pointermove', (e) => {
     if (!drag) return;
-    const nx = Math.min(innerWidth - panel.offsetWidth, Math.max(8, e.clientX - drag.ox));
+    const nx = Math.min(innerWidth  - panel.offsetWidth,  Math.max(8, e.clientX - drag.ox));
     const ny = Math.min(innerHeight - panel.offsetHeight, Math.max(8, e.clientY - drag.oy));
     panel.style.left = nx + 'px';
     panel.style.top  = ny + 'px';
@@ -172,36 +201,36 @@ function buildPanel() {
   return panel;
 }
 
-// --- (구매 여부 체크 후) 패널 열기 ---
+// =============================
+// 5) 패널 열기 / 키보드 토글
+// =============================
 async function openPanel() {
   try {
     const obj = await chrome.storage?.local.get(SHOP_STORE_KEY);
     const unlocked = !!obj?.[SHOP_STORE_KEY]?.unlockedTools?.color_tool;
-    if (!unlocked) return; // 구매 전이면 무시
-  } catch { /* ignore */ }
+    if (!unlocked) return;
+  } catch {}
 
   let panel = document.querySelector('.shimeji-color-panel');
   if (!panel) panel = buildPanel();
   panel.style.display = 'block';
 
   const st = load();
-  st.open = true;
+  st.open  = true;
   save(st);
   syncPanelSlidersTo(st);
 }
 
-// --- 키보드 토글 (Ctrl+Shift+C) : 구매한 경우에만 열림 ---
 addEventListener('keydown', async (e) => {
   if (!(e.ctrlKey && e.shiftKey && (e.key === 'C' || e.key === 'c'))) return;
 
-  // 구매 여부 확인
   let unlocked = false;
   try {
     const obj = await chrome.storage?.local.get(SHOP_STORE_KEY);
     unlocked = !!obj?.[SHOP_STORE_KEY]?.unlockedTools?.color_tool;
   } catch {}
 
-  if (!unlocked) return; // 구매 전이면 토글 금지
+  if (!unlocked) return;
 
   let panel = document.querySelector('.shimeji-color-panel');
   if (!panel) panel = buildPanel();
@@ -209,52 +238,77 @@ addEventListener('keydown', async (e) => {
   panel.style.display = willShow ? 'block' : 'none';
 
   const st = load();
-  st.open = willShow;
+  st.open  = willShow;
   save(st);
   if (willShow) syncPanelSlidersTo(st);
 });
 
-// --- popup(Shop) → content 메시지 처리 ---
+// =============================
+// 6) popup → content 메시지 처리
+//    - APPLY_COLOR_PRESET
+//    - OPEN_COLOR_TOOL
+//    - APPLY_ACCESSORIES
+// =============================
 chrome.runtime?.onMessage?.addListener((msg) => {
   if (msg?.type === 'APPLY_COLOR_PRESET' && msg.preset) {
     applyPresetFromShop(msg.preset);
   } else if (msg?.type === 'OPEN_COLOR_TOOL') {
     openPanel();
+  } else if (msg?.type === 'APPLY_ACCESSORIES') {
+    // shop_pane.js 에서 보내는 equipped 필드 우선
+    applyAccessoriesToSprites(msg.equipped || msg.accessories || {});
   }
 });
 
-// --- 페이지 로드시: 상점에 저장된 activeColorPreset 있으면 적용(패널은 열지 않음) ---
-(async function applySavedPresetOnLoad() {
+// =============================
+// 7) 페이지 로드 시: 저장된 색상/악세서리 복원
+// =============================
+(async function initFromStorageOnLoad() {
   try {
-    const obj = await chrome.storage?.local.get(SHOP_STORE_KEY);
+    const obj    = await chrome.storage?.local.get(SHOP_STORE_KEY);
     const stShop = obj?.[SHOP_STORE_KEY];
-    const p = stShop?.activeColorPreset;
+    const p      = stShop?.activeColorPreset;
+
+    // 색상
     if (p && typeof p.hue === 'number') {
       applyPresetFromShop(p);
     } else {
       applyFilters(load());
+    }
+
+    // 악세서리 (equippedAccessories 우선, 예전 activeAccessories 폴백)
+    const acc = stShop?.equippedAccessories || stShop?.activeAccessories;
+    if (acc) {
+      applyAccessoriesToSprites(acc);
     }
   } catch {
     applyFilters(load());
   }
 })();
 
-// --- 새 스폰에도 필터 유지 (spawn 래핑) ---
+// =============================
+// 8) 새 스폰에도 색상/악세서리 유지
+// =============================
 (function wrapSpawnOnce(){
   if (window.__cat_color_spawn_wrapped__) return;
   window.__cat_color_spawn_wrapped__ = true;
+
   const tryWrap = () => {
     if (!window.Shimeji || typeof window.Shimeji.spawn !== 'function') return false;
     const old = window.Shimeji.spawn;
     window.Shimeji.spawn = function(...args){
       const s = old.apply(this, args);
+      // 새로 생성된 시메지에도 색상 + 악세서리 동기화
       applyFilters(load());
+      if (window.Shimeji.activeAccessories) {
+        applyAccessoriesToSprites(window.Shimeji.activeAccessories);
+      }
       return s;
     };
     return true;
   };
+
   if (!tryWrap()) {
-    // spawn이 나중에 붙는 경우를 대비해 폴링
     const t = setInterval(() => { if (tryWrap()) clearInterval(t); }, 200);
     setTimeout(() => clearInterval(t), 5000);
   }
