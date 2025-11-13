@@ -101,6 +101,24 @@ export function calcPoints(totalMinutes, mode = 'linear_min', opts = {}) {
   }
 }
 
+/* ---------- 세션 포인트 지급(고양이 포인트) ---------- */
+// CHG: 실제 고양이 포인트 지급은 여기서만 수행.
+//      logs에는 calcPoints 그대로 기록하고,
+//      고양이 포인트는 Math.floor(points)만큼만 지급.
+async function awardSessionPoints(rawPoints, mode) {
+  const delta = Math.floor(Math.max(0, Number(rawPoints) || 0));
+  if (!delta) return; // 0 이하면 아무 것도 안 함
+  try {
+    await chrome.runtime?.sendMessage?.({
+      type: 'POINTS_EARN',
+      delta,
+      reason: `timer_session:${mode || 'unknown'}`
+    });
+  } catch {
+    // 메시지 실패해도 타이머/로그는 그대로 유지
+  }
+}
+
 /* ---------- 타이머 동작 ---------- */
 export async function start(taskName = '') {
   const st = await getState();
@@ -211,8 +229,10 @@ async function finalizeSession() {
     mode: st.mode
   };
 
+  // CHG: 로그에 세션 점수를 기록한 뒤, 그 점수만큼 고양이 포인트 지급
   const next = { ...st, logs: [...st.logs, log] };
   await setState(next);
+  await awardSessionPoints(points, st.mode);
 }
 
 /* ---------- 집계/CSV ---------- */
@@ -368,6 +388,10 @@ export async function splitIfCrossedMidnight(now = Date.now()) {
         startTimestamp: boundary, // 경계부터 계속
         offsetMs: 0,              // 과거 파트로 귀속했으므로 초기화
       });
+
+      // CHG: 자정 분할로 생긴 첫 번째 조각에 대해서도 포인트 지급
+      await awardSessionPoints(points, st.mode);
+
       return true;
     }
   }

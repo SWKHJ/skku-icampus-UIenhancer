@@ -5,12 +5,15 @@
 const on  = (el, ev, fn) => el && el.addEventListener(ev, fn);
 const off = (el, ev, fn) => el && el.removeEventListener(ev, fn);
 
-/* Storage / Items */
+// CHG: 포인트는 전부 background 권위 경로로 호출
+import { Points, bindBalanceUpdates } from '../shimeji/points_client.js';
+
+/* Storage / Items (포인트 제외한 상점 상태만 로컬에 저장) */
 const STORE_KEY = 'shimeji_store_v1';
 
 const BASE_PRESET = { id: 'cat_default', hue: 0,   sat: 120, bri: 100, con: 100, opa: 100 };
 const DEFAULT_STATE = {
-  points: 0,
+  // CHG: points 제거 (포인트는 background가 관리)
   owned: { cat_default: true, cat_pink: false, cat_lime: false },
   activeColorPreset: null,
   unlockedTools: { color_tool: false }
@@ -32,7 +35,7 @@ let btnAdd = null, btnSub = null, btnReset = null;
 let pointsLabel = null;
 const bound = []; // [{el, ev, fn}] for destroy
 
-/* Storage helpers */
+/* Storage helpers (포인트 제외) */
 async function loadState() {
   const obj = await chrome.storage.local.get(STORE_KEY);
   const st = { ...DEFAULT_STATE, ...(obj[STORE_KEY] || {}) };
@@ -45,7 +48,9 @@ async function loadState() {
   return st;
 }
 async function saveState(st) {
-  await chrome.storage.local.set({ [STORE_KEY]: st });
+  // CHG: 포인트 필드를 절대 넣지 않도록 방어
+  const { owned, activeColorPreset, unlockedTools } = st;
+  await chrome.storage.local.set({ [STORE_KEY]: { owned, activeColorPreset, unlockedTools } });
 }
 
 /* UI helpers */
@@ -101,12 +106,12 @@ function makeCard(item, st, rerender) {
 
     if (item.kind === 'tool') {
       if (!cur.unlockedTools[item.id]) {
-        if (cur.points < item.price) { alert('포인트가 부족합니다.'); return; }
-        cur.points -= item.price;
+        // CHG: 직접 차감 금지 → 권위 경로로 결제
+        const r = await Points.spend(item.price, `buy:${item.id}`);
+        if (!r.ok) { alert(r.reason === 'insufficient' ? '포인트가 부족합니다.' : `구매 실패: ${r.reason||'unknown'}`); return; }
         cur.unlockedTools[item.id] = true;
         await saveState(cur);
-        updatePointsLabel(cur.points);
-        await rerender();
+        await rerender(); // 카드 상태 갱신
       } else {
         openToolOnActiveTab();
       }
@@ -115,13 +120,13 @@ function makeCard(item, st, rerender) {
 
     // preset
     if (!cur.owned[item.id]) {
-      if (cur.points < item.price) { alert('포인트가 부족합니다.'); return; }
-      cur.points -= item.price;
+      // CHG: 직접 차감 금지 → 권위 경로로 결제
+      const r = await Points.spend(item.price, `buy:${item.id}`);
+      if (!r.ok) { alert(r.reason === 'insufficient' ? '포인트가 부족합니다.' : `구매 실패: ${r.reason||'unknown'}`); return; }
       cur.owned[item.id] = true;
     }
     cur.activeColorPreset = { ...item.preset };
     await saveState(cur);
-    updatePointsLabel(cur.points);
     applyToActiveTab(cur.activeColorPreset);
     await rerender();
   };
@@ -135,7 +140,8 @@ function makeCard(item, st, rerender) {
 async function renderStore() {
   if (!storeGrid) return;
   const st = await loadState();
-  updatePointsLabel(st.points);
+  // CHG: 포인트 표시는 권위 경로에서 조회
+  updatePointsLabel(await Points.get());
   storeGrid.innerHTML = '';
   ITEMS.forEach((it) => storeGrid.appendChild(makeCard(it, st, renderStore)));
 }
@@ -145,21 +151,39 @@ export async function initPane(rootEl) {
   root = rootEl;
   if (!root) return;
 
-  storeGrid = root.querySelector('#store');
-  btnAdd    = root.querySelector('#add100');
-  btnSub    = root.querySelector('#sub100');
-  btnReset  = root.querySelector('#resetShop');
+  storeGrid   = root.querySelector('#store');
+  btnAdd      = root.querySelector('#add100');
+  btnSub      = root.querySelector('#sub100');
+  btnReset    = root.querySelector('#resetShop');
   pointsLabel = document.querySelector('#points');
 
-  // Buttons
-  const onAdd = async () => { const st = await loadState(); st.points += 100; await saveState(st); updatePointsLabel(st.points); await renderStore(); };
-  const onSub = async () => { const st = await loadState(); st.points = Math.max(0, st.points - 100); await saveState(st); updatePointsLabel(st.points); await renderStore(); };
+  // CHG: 실시간 포인트 갱신 바인딩 (선택)
+  const unbind = bindBalanceUpdates((b) => updatePointsLabel(b));
+  bound.push({ el: null, ev: 'POINTS_UPDATED', fn: unbind }); // destroyPane에서 호출 용도로만 저장
+
+  // Buttons (디버그/관리용)
+  const onAdd = async () => { 
+    // CHG: 직접 증가 금지
+    const r = await Points.earn(100, 'debug:add100');
+    if (!r.ok) alert(`증가 실패: ${r.reason||'unknown'}`);
+    await renderStore();
+  };
+  const onSub = async () => { 
+    // CHG: 직접 감소 금지
+    const r = await Points.spend(100, 'debug:sub100');
+    if (!r.ok) alert(r.reason === 'insufficient' ? '포인트가 부족합니다.' : `감소 실패: ${r.reason||'unknown'}`);
+    await renderStore();
+  };
   const onReset = async () => {
+    // 상점 상태만 초기화(포인트는 권위 경로 유지)
     const st = { ...DEFAULT_STATE };
     await saveState(st);
-    updatePointsLabel(st.points);
     applyToActiveTab(BASE_PRESET);
     await renderStore();
+
+    // CHG(옵션): 포인트도 0으로 초기화하고 싶다면 주석 해제
+    // const bal = await Points.get();
+    // if (bal > 0) await Points.spend(bal, 'reset:toZero');
   };
 
   on(btnAdd,   'click', onAdd);   bound.push({ el: btnAdd,  ev:'click', fn:onAdd });
@@ -171,7 +195,10 @@ export async function initPane(rootEl) {
 
 export function destroyPane() {
   // 이벤트 해제
-  bound.forEach(({ el, ev, fn }) => off(el, ev, fn));
+  bound.forEach(({ el, ev, fn }) => {
+    if (el) off(el, ev, fn);
+    else if (typeof fn === 'function') fn(); // CHG: bindBalanceUpdates 해제
+  });
   bound.length = 0;
 
   // 레퍼런스 정리

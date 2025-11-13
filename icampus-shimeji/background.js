@@ -1,4 +1,4 @@
-// ===== background.js (Robust + prefill guard; offscreen + alarms wired) =====
+// ===== background.js (Robust + prefill guard; offscreen + alarms + points authority) =====
 
 // 0) 컨텍스트 메뉴: 선택 텍스트에서만 노출
 const SEL_ID = 'catTimer.fromSelection';
@@ -138,5 +138,65 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     });
   } catch (e) {
     console.error('Timer module init failed:', e);
+  }
+})();
+
+// ======================
+// 3) Points 권위 경로  (NEW)
+// - 서명 토큰 모듈 로드 + 키 초기화
+// - 직렬화 큐로 동시 earn/spend 순서 보장
+// - 포인트 변경 시 전체 탭/팝업에 브로드캐스트
+// ======================
+(async () => {
+  try {
+    const Points = await import('./shimeji/points_token.js'); // NEW: 토큰 모듈
+    await Points.initPointsKey();                             // NEW: 비밀키 준비
+
+    // NEW: 직렬화 큐 (earn/spend 경합 시 순서 보장)
+    let queue = Promise.resolve();
+    const enqueue = (fn) => (queue = queue.then(fn).catch(() => {}));
+
+    // NEW: 변경 브로드캐스트 (UI 동기화)
+    function broadcastBalance(bal) {
+      chrome.tabs.query({}, tabs => {
+        for (const t of tabs) chrome.tabs.sendMessage?.(t.id, { type: 'POINTS_UPDATED', balance: bal });
+      });
+      chrome.runtime.sendMessage?.({ type: 'POINTS_UPDATED', balance: bal });
+    }
+
+    // NEW: 메시지 라우터 (get/earn/spend)
+    chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+      (async () => {
+        switch (msg?.type) {
+          case 'POINTS_GET': {
+            const r = await Points.getBalanceToken();
+            sendResponse({ ok: true, balance: r.balance });
+            break;
+          }
+          case 'POINTS_EARN': {
+            await enqueue(async () => {
+              const r = await Points.earnPoints(+msg.delta || 0);
+              if (r.ok) broadcastBalance(r.balance);
+              sendResponse(r);
+            });
+            break;
+          }
+          case 'POINTS_SPEND': {
+            await enqueue(async () => {
+              const r = await Points.spendPoints(+msg.cost || 0);
+              if (r.ok) broadcastBalance(r.balance);
+              sendResponse(r);
+            });
+            break;
+          }
+          default:
+            // 다른 리스너가 처리할 수 있으므로 여기선 무시
+            break;
+        }
+      })();
+      return true; // async 응답 유지
+    });
+  } catch (e) {
+    console.error('Points module init failed:', e);
   }
 })();

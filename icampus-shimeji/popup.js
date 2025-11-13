@@ -1,15 +1,18 @@
-// ===== popup.js (hardened storage + import retry + focus + settings pane wired) =====
+// ===== popup.js (hardened storage + import retry + focus + settings pane wired + global points header) =====
+import { Points, bindBalanceUpdates } from './shimeji/points_client.js'; // [NEW]
+
 const $id = (id) => document.getElementById(id);
 const on  = (el, ev, fn) => el && el.addEventListener(ev, fn);
 
 const panes = {
   shop:     { el: $id('pane-shop'),     mod: null },
   timer:    { el: $id('pane-timer'),    mod: null },
-  settings: { el: $id('pane-settings'), mod: null }, // [NEW]
+  settings: { el: $id('pane-settings'), mod: null },
 };
 
 let current = null;
 let activatingPromise = null;
+let unbindPoints = null; // [NEW] 헤더 포인트 구독 해제용
 
 function showTab(key) {
   Object.entries(panes).forEach(([k, p]) => {
@@ -30,10 +33,9 @@ function showTab(key) {
 async function importPaneModule(key) {
   // 단순 재시도 1회
   const load = async () => {
-    // [NEW] settings 분기 추가
     if (key === 'shop')     return import('./popup/shop_pane.js');
     if (key === 'timer')    return import('./popup/timer_pane.js');
-    if (key === 'settings') return import('./popup/settings_pane.js'); // [NEW]
+    if (key === 'settings') return import('./popup/settings_pane.js');
     // 방어: 알 수 없는 키면 타이머로 포백
     return import('./popup/timer_pane.js');
   };
@@ -99,6 +101,25 @@ function bindTabs() {
   });
 }
 
+// [NEW] 헤더 포인트 전역 초기화 + 실시간 반영
+async function initHeaderPoints() {
+  const lbl = document.getElementById('points');
+  if (!lbl) return;
+
+  try {
+    const bal = await Points.get();
+    lbl.textContent = String(bal);
+  } catch {
+    // 실패 시 그냥 0 그대로 두고 넘어감
+  }
+
+  // background → POINTS_UPDATED 브로드캐스트를 구독해서 항상 동기화
+  unbindPoints = bindBalanceUpdates((balance) => {
+    if (!lbl) return;
+    lbl.textContent = String(balance);
+  });
+}
+
 // 초기 탭 결정: timerPrefill가 있으면 timer, 없으면 마지막 탭(기본 shop)
 async function decideInitialTab() {
   try {
@@ -109,7 +130,9 @@ async function decideInitialTab() {
     const obj = await chrome.storage.local.get('popup:lastTab');
     const key = obj['popup:lastTab'] || 'shop';
     return (key in panes) ? key : 'shop';
-  } catch { return 'shop'; }
+  } catch {
+    return 'shop';
+  }
 }
 
 // 백그라운드가 “Timer 탭 켜” 메시지 보낼 때
@@ -119,6 +142,7 @@ chrome.runtime.onMessage.addListener((msg) => {
 
 async function boot() {
   bindTabs();
+  await initHeaderPoints();           // [NEW] 헤더 포인트 먼저 동기화
   const initial = await decideInitialTab();
   await activate(initial);
 }
@@ -129,8 +153,12 @@ if (document.readyState === 'loading') {
   boot();
 }
 
-// 팝업 닫힐 때 현재 pane 정리(안전망)
+// 팝업 닫힐 때 현재 pane 정리(안전망) + 포인트 구독 해제
 window.addEventListener('unload', () => {
+  if (unbindPoints) {
+    try { unbindPoints(); } catch {}
+    unbindPoints = null;
+  }
   const cur = panes[current];
   if (cur?.mod?.destroyPane) { try { cur.mod.destroyPane(); } catch {} }
 });

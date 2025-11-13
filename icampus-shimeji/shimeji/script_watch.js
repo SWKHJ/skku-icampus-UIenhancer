@@ -1,16 +1,14 @@
 // ==== shimeji/script_watch.js ====
 // A) 페이지 훅(Main world) 주입 요청 (제출 감지용)
 // B) 제출 연관 스크립트/요청 감지 → 축하 애니메이션 (기존 유지)
-// C) 접속 보상 +5pt
-//    - 디버그 모드 ON → 접속할 때마다 +5pt
-//    - 디버그 모드 OFF → '하루 1회'만 +5pt
-//    - 디버그 토글은 chrome.storage.local('shimeji_debug_flags_v1') 로 관리
+// C) 접속 보상 +5pt (디버그: 방문마다 / 일반: 하루 1회)
 // D) 간단 토스트 UI
-// E) 과제 제출 성공(phase==='completed') 시 +10pt 지급  ← NEW
+// E) 과제 제출 성공(phase==='completed') 시 +10pt 지급  ← 유지
+// CHG: 포인트 증가는 전부 background에 메시지로 위임(서명 토큰 검증 경유)
 
 (() => {
   // --------- 상수/도우미 ----------
-  const STORE_KEY = 'shimeji_store_v1';           // 상점/포인트 저장소
+  const STORE_KEY = 'shimeji_store_v1';           // 상점 상태 저장(포인트 제외)
   const DEBUG_KEY = 'shimeji_debug_flags_v1';     // 디버그 플래그 저장소
   const RE_SCRIPT = /\/dist\/webpack-production\/submit_assignment-[^/]+\.js(\?|#|$)/i;
   const RE_REQ    = /(^|\/)submissions?(\/|\.|$)/i;
@@ -18,18 +16,31 @@
   const COOLDOWN_MS = 1200;
   const seen = new Map();
 
-  const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+  // CHG: 포인트 권위 경로(얇은 래퍼)
+  const Points = {
+    async earn(delta, reason) {
+      const r = await chrome.runtime.sendMessage({ type: 'POINTS_EARN', delta, reason });
+      return r?.ok;
+    }
+  };
 
-  // storage helpers
+  // storage helpers (포인트 제외)
   async function loadShop() {
     const obj = await chrome.storage?.local.get(STORE_KEY);
-    return obj?.[STORE_KEY] || { points: 0, owned: {}, activeColorPreset: null, unlockedTools: {}, _meta: {} };
+    const st = obj?.[STORE_KEY] || {};
+    // 메타만 사용(예: lastDailyVisitBonusDate); owned/tool 등 다른 필드가 있어도 그대로 둠
+    st._meta = st._meta || {};
+    return st;
   }
-  async function saveShop(st) { await chrome.storage?.local.set({ [STORE_KEY]: st }); }
+  async function saveShop(st) {
+    // CHG: 포인트 필드가 들어가지 않도록 방어적으로 필터링
+    const { _meta, owned, activeColorPreset, unlockedTools } = st;
+    await chrome.storage?.local.set({ [STORE_KEY]: { _meta, owned, activeColorPreset, unlockedTools } });
+  }
 
   async function loadDebugFlags() {
     const obj = await chrome.storage?.local.get(DEBUG_KEY);
-    // 기본값: 디버그 ON (접속 시마다 +5)
+    // 기본값: dailyBonusAlways=false (하루 1회)
     return Object.assign({ dailyBonusAlways: false }, obj?.[DEBUG_KEY] || {});
   }
 
@@ -58,27 +69,25 @@
     try { chrome.runtime?.sendMessage?.({ type: 'INJECT_PAGE_HOOK' }); } catch {}
   }
 
+  // CHG: 포인트 증가는 메시지 경유 (직접 저장 금지)
   async function awardPoints(pts, reasonMsg) {
     try {
-      const st = await loadShop();
-      st.points = clamp((st.points ?? 0) + pts, 0, 1e9);
-      await saveShop(st);
-      if (reasonMsg) toast(`+${pts} pt\n${reasonMsg}`);
-      // (팝업 열려 있으면 포인트 갱신 메시지를 보낼 수도 있지만 여기서는 생략)
+      const ok = await Points.earn(pts, reasonMsg);
+      if (ok && reasonMsg) toast(`+${pts} pt\n${reasonMsg}`);
     } catch {}
   }
 
-    function onHit(url, phase) {
-      const key = `${phase}|${url}`;
-      const now = Date.now();
-      const last = seen.get(key) || 0;
-      if (now - last < COOLDOWN_MS) return; // 쏟아지는 중복 차단
-      seen.set(key, now);
+  function onHit(url, phase) {
+    const key = `${phase}|${url}`;
+    const now = Date.now();
+    const last = seen.get(key) || 0;
+    if (now - last < COOLDOWN_MS) return; // 쏟아지는 중복 차단
+    seen.set(key, now);
 
-      sessionStorage.setItem('__shimeji_afterSubmission', JSON.stringify({
-          t: now, url, phase
-      }));
-    }
+    sessionStorage.setItem('__shimeji_afterSubmission', JSON.stringify({
+      t: now, url, phase
+    }));
+  }
 
   // page_hook.js → postMessage 수신
   window.addEventListener('message', (e) => {
@@ -88,46 +97,20 @@
 
     const url = d.url || '';
     const phase = (d.phase || '').toLowerCase();
-
     if (!RE_REQ.test(url)) return; // /submissions 만
 
     // 기존 애니메이션 트리거 유지
     onHit(d.url, d.phase || 'unknown');
 
-    // 🔸 NEW: 과제 제출 "성공 시점"으로 쓰던 completed 타이밍에만 +10pt 지급
+    // NEW: 제출 완료(completed)에서만 +10pt
     if (phase === 'completed') {
       awardPoints(10, 'Assignment submitted');
     }
   });
 
-  // 기존 script 태그/Performance API/MutationObserver
-  // Array.from(document.scripts).forEach(sc => {
-  //   if (sc.src && RE_SCRIPT.test(sc.src)) onHit('script', sc.src, 'existing');
-  // });
-  // try {
-  //   performance.getEntriesByType('resource')
-  //     .filter(e => e.initiatorType === 'script' && RE_SCRIPT.test(e.name))
-  //     .forEach(e => onHit('script', e.name, 'perf-initial'));
-  //   const po = new PerformanceObserver(list => {
-  //     list.getEntries()
-  //       .filter(e => e.initiatorType === 'script' && RE_SCRIPT.test(e.name))
-  //       .forEach(e => onHit('script', e.name, 'perf-observer'));
-  //   });
-  //   po.observe({ type: 'resource', buffered: true });
-  // } catch {}
-  // const mo = new MutationObserver(muts => {
-  //   for (const m of muts) {
-  //     m.addedNodes.forEach(n => {
-  //       if (n.tagName === 'SCRIPT' && n.src && RE_SCRIPT.test(n.src)) {
-  //         n.addEventListener('load', () => onHit('script', n.src, 'script-load'), { once: true });
-  //         onHit('script', n.src, 'script-added');
-  //       }
-  //     });
-  //   }
-  // });
-  // mo.observe(document.documentElement, { subtree: true, childList: true });
+  // (기존 스크립트 감시 로직은 주석 상태 유지)
 
-  // --------- C) 접속 보상 +5pt (디버그/일반 토글) ----------
+  // --------- C) 접속 보상 +5pt (디버그/일반) ----------
   function todayStr() {
     const d = new Date();
     const mm = String(d.getMonth()+1).padStart(2,'0');
@@ -137,15 +120,13 @@
 
   async function grantVisitBonus() {
     try {
-      const flags = await loadDebugFlags();        // { dailyBonusAlways: true|false }
+      const flags = await loadDebugFlags();  // { dailyBonusAlways: true|false }
       const st = await loadShop();
-      st._meta = st._meta || {};
 
       if (flags.dailyBonusAlways) {
-        // 디버그: 접속할 때마다 +5
-        st.points = clamp((st.points ?? 0) + 5, 0, 1e9);
-        await saveShop(st);
-        toast(`+5 pt\nDebug: visit bonus`);
+        // CHG: 방문마다 +5 → 권위 경로로 지급
+        const ok = await Points.earn(5, 'Debug: visit bonus');
+        if (ok) toast(`+5 pt\nDebug: visit bonus`);
         return;
       }
 
@@ -153,10 +134,12 @@
       const today = todayStr();
       const last = st._meta.lastDailyVisitBonusDate;
       if (last !== today) {
-        st.points = clamp((st.points ?? 0) + 5, 0, 1e9);
-        st._meta.lastDailyVisitBonusDate = today;
-        await saveShop(st);
-        toast(`+5 pt\nDaily visit bonus`);
+        const ok = await Points.earn(5, 'Daily visit bonus'); // CHG
+        if (ok) {
+          st._meta.lastDailyVisitBonusDate = today;
+          await saveShop(st); // 메타만 저장
+          toast(`+5 pt\nDaily visit bonus`);
+        }
       }
     } catch {}
   }
@@ -168,9 +151,5 @@
     grantVisitBonus();
   }
 
-  // --------- (참고) 디버그 토글을 콘솔에서 쉽게 바꾸는 헬퍼(원하면 사용) ----------
-  // 개발자도구 콘솔에서:
-  //   chrome.storage.local.set({ shimeji_debug_flags_v1: { dailyBonusAlways: true }})  // 매 접속마다 +5
-  //   chrome.storage.local.set({ shimeji_debug_flags_v1: { dailyBonusAlways: false }}) // 하루 1회만 +5
-  // 위 주석만으로 충분해서 실제 함수는 주입하지 않음.
+  // (참고) 디버그 토글은 기존 주석 안내대로 storage에서 설정
 })();
