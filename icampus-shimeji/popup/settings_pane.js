@@ -59,22 +59,52 @@ const fnameRangeLabel = (a,b) => `${a}_to_${b}`;
 
 /* --------------- CSV builders --------------- */
 function buildRawCSV(logs, startMs, endMs) {
-  const rows = [['task','detail','startISO','endISO','startLocal','endLocal','seconds','minutes','hh:mm:ss','mode']];
+  const rows = [[
+    'task','detail',
+    'startISO','endISO',
+    'startLocal','endLocal',
+    'seconds','minutes','hh:mm:ss','mode',
+    'tz','endLocalDate','endLocalYM','isoYear','isoWeek'
+  ]];
+
   for (const l of logs || []) {
     if (!(l?.end >= startMs && l.end < endMs)) continue;
-    const sec = Number.isFinite(l.seconds) ? l.seconds : Math.max(0, Math.floor((l.minutes||0)*60));
+
+    const sec = Number.isFinite(l.seconds)
+      ? l.seconds
+      : Math.max(0, Math.floor((l.minutes||0)*60));
     const min = Math.round((sec/60)*100)/100;
+
+    const startISO = new Date(l.start).toISOString();
+    const endISO   = new Date(l.end).toISOString();
+
+    const startLocalStr = `${fmtDateLocal(l.start)} ${new Date(l.start).toTimeString().slice(0,8)}`;
+    const endLocalStr   = `${fmtDateLocal(l.end)} ${new Date(l.end).toTimeString().slice(0,8)}`;
+
+    // 새 버전 로그에는 아래 필드가 그대로 들어 있고,
+    // 구버전 로그는 fallback 으로 비우거나 계산 가능한 것만 채운다.
+    const tz          = l.tz || '';
+    const endLocalDate= l.endLocalDate || fmtDateLocal(l.end);
+    const endLocalYM  = l.endLocalYM || endLocalDate.slice(0,7);
+    const isoYear     = (l.isoYear !== undefined && l.isoYear !== null) ? l.isoYear : '';
+    const isoWeek     = (l.isoWeek !== undefined && l.isoWeek !== null) ? l.isoWeek : '';
+
     rows.push([
       l.task || '',
       l.detail || '',
-      new Date(l.start).toISOString(),
-      new Date(l.end).toISOString(),
-      `${fmtDateLocal(l.start)} ${new Date(l.start).toTimeString().slice(0,8)}`,
-      `${fmtDateLocal(l.end)} ${new Date(l.end).toTimeString().slice(0,8)}`,
+      startISO,
+      endISO,
+      startLocalStr,
+      endLocalStr,
       sec,
       min,
       toHMS(sec),
-      l.mode || ''
+      l.mode || '',
+      tz,
+      endLocalDate,
+      endLocalYM,
+      isoYear,
+      isoWeek
     ]);
   }
   return rowsToCSV(rows);
@@ -85,9 +115,12 @@ function buildDailySummaryCSV(logs, startMs, endMs) {
 
   for (const l of logs || []) {
     if (!(l?.end >= startMs && l.end < endMs)) continue;
-    const day = fmtDateLocal(l.end);
+    // 가능하면 세션 당시 로컬 날짜(endLocalDate)를 그대로 사용
+    const day = l.endLocalDate || fmtDateLocal(l.end);
     const key = `${day}|||${l.task||''}|||${l.detail||''}`;
-    const sec = Number.isFinite(l.seconds) ? l.seconds : Math.max(0, Math.floor((l.minutes||0)*60));
+    const sec = Number.isFinite(l.seconds)
+      ? l.seconds
+      : Math.max(0, Math.floor((l.minutes||0)*60));
     bucket.set(key, (bucket.get(key) || 0) + sec);
   }
 

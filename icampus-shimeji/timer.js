@@ -22,7 +22,10 @@ function defaultState() {
     linearPerMin: 0.10,
 
     // 로그 (종료된 세션만)
-    // {task, detail, start, end, seconds, minutes, points, mode}
+    // {
+    //   task, detail, start, end, seconds, minutes, points, mode,
+    //   tz, endLocalDate, endLocalYM, isoYear, isoWeek
+    // }
     logs: []
   };
 }
@@ -80,6 +83,46 @@ export function fmtHMS_sec(secInput = 0) {
 // 하위 호환(기존 호출부 임시 유지). 기본을 ms로 간주.
 export function fmtHMS(msOrSec) { return fmtHMS_ms(msOrSec); }
 export function fmtMMSS(ms)     { return fmtHMS_ms(ms); }
+
+/* ---------- 타임존/집계 키 유틸 ---------- */
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
+
+/**
+ * buildSessionKeys(endMs)
+ * - 세션 종료 시각(end, UTC ms)을 기준으로
+ *   세션 당시의 타임존/일·월·주 집계 키를 생성
+ */
+function buildSessionKeys(endMs) {
+  const d = new Date(endMs);
+
+  // IANA 타임존 (예: "Asia/Seoul"). 지원 안 되면 UTC로 폴백.
+  let tz = 'UTC';
+  try {
+    tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    // 환경에 따라 Intl이 없을 수도 있으니 방어
+    tz = 'UTC';
+  }
+
+  const y  = d.getFullYear();
+  const m  = d.getMonth(); // 0-based
+  const dd = d.getDate();
+
+  const endLocalDate = `${y}-${pad2(m + 1)}-${pad2(dd)}`;
+  const endLocalYM   = `${y}-${pad2(m + 1)}`;
+
+  // ISO week-year/week 계산 (UTC 기준이지만, 실사용엔 충분)
+  const tmp = new Date(Date.UTC(y, m, dd));
+  const dayNum = tmp.getUTCDay() || 7;         // 1(월)~7(일)
+  tmp.setUTCDate(tmp.getUTCDate() + 4 - dayNum); // 해당 주의 목요일
+  const isoYear = tmp.getUTCFullYear();
+  const jan1 = new Date(Date.UTC(isoYear, 0, 1));
+  const isoWeek = Math.ceil(((tmp - jan1) / 86400000 + 1) / 7);
+
+  return { tz, endLocalDate, endLocalYM, isoYear, isoWeek };
+}
 
 /* ---------- 점수 계산 ---------- */
 export function calcPoints(totalMinutes, mode = 'linear_min', opts = {}) {
@@ -218,6 +261,8 @@ async function finalizeSession() {
     ? st.startTimestamp
     : (now - elapsedMs);
 
+  const keys = buildSessionKeys(now);
+
   const log = {
     task:   st.work || st.taskName || '',
     detail: st.detail || '',
@@ -226,7 +271,8 @@ async function finalizeSession() {
     seconds,
     minutes,
     points,
-    mode: st.mode
+    mode: st.mode,
+    ...keys
   };
 
   // CHG: 로그에 세션 점수를 기록한 뒤, 그 점수만큼 고양이 포인트 지급
@@ -281,7 +327,12 @@ export async function aggregates(includeLive = false) {
 
 export async function toCSV() {
   const st = await getState();
-  const rows = [['task','detail','startISO','endISO','seconds','minutes','points','mode']];
+  const rows = [[
+    'task','detail','startISO','endISO',
+    'seconds','minutes','points','mode',
+    'tz','endLocalDate','endLocalYM','isoYear','isoWeek'
+  ]];
+
   st.logs.forEach(l => rows.push([
     l.task,
     l.detail || '',
@@ -290,7 +341,12 @@ export async function toCSV() {
     l.seconds,
     Math.round(l.minutes * 100) / 100, // 소수 2자리
     l.points,
-    l.mode
+    l.mode,
+    l.tz || '',
+    l.endLocalDate || '',
+    l.endLocalYM || '',
+    l.isoYear ?? '',
+    l.isoWeek ?? ''
   ]));
   return rows.map(r => r.map(csvEsc).join(',')).join('\n');
 }
@@ -372,6 +428,8 @@ export async function splitIfCrossedMidnight(now = Date.now()) {
       const end1   = boundary;
       const start1 = end1 - elapsedFirst;
 
+      const keys1 = buildSessionKeys(end1);
+
       const log1 = {
         task:   st.work || st.taskName || '',
         detail: st.detail || '',
@@ -380,7 +438,8 @@ export async function splitIfCrossedMidnight(now = Date.now()) {
         seconds,
         minutes,
         points,
-        mode:   st.mode
+        mode:   st.mode,
+        ...keys1
       };
 
       await setState({
