@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Shimeji Sprite Walker 1.3.3",
-  "version": "1.3.3",
+  "name": "Shimeji Sprite Walker 1.3.5",
+  "version": "1.3.5",
   "description": "스프라이트 시트 기반 시메지 + 공부 타이머",
   "background": {
     "service_worker": "background.js",
@@ -11,7 +11,7 @@
     "default_popup": "popup.html",
     "default_title": "Cat Custom Shop / Study Timer"
   },
-  "permissions": ["storage", "scripting", "alarms", "contextMenus", "offscreen"],
+  "permissions": ["storage", "scripting", "alarms", "contextMenus", "offscreen", "downloads"],
   "host_permissions": [
     "<all_urls>",
     "https://canvas.skku.edu/dist/webpack-production/submit_assignment-*.js*"
