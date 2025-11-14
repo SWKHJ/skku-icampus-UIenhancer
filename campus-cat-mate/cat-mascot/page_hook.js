@@ -1,9 +1,9 @@
-// shimeji/page_hook.js  (메인 월드, CSP 영향 없음)
+// cat-mascot/page_hook.js  (메인 월드, CSP 영향 없음)
 (() => {
   const reReq = /(^|\/)submissions?(\/|\.|$)/i;
 
   const post = (url, phase) =>
-    window.postMessage({ type: '__shimeji_req', url, phase }, '*');
+    window.postMessage({ type: '__catMascot_req', url, phase }, '*');
 
   // fetch hook
   const _fetch = window.fetch;

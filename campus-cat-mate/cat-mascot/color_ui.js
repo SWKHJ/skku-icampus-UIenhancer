@@ -1,10 +1,10 @@
-// ==== shimeji/color_ui.js ====
+// ==== cat-mascot/color_ui.js ====
 console.log('[Cat] color UI loaded');
 
-window.Shimeji = window.Shimeji || {};
+window.catMascot = window.catMascot || {};
 
 const STORE_KEY      = '__cat_color_ui_v1';    // 이 파일(패널)이 쓰는 로컬 상태
-const SHOP_STORE_KEY = 'shimeji_store_v1';     // 상점 상태 (presets / tools / accessories)
+const SHOP_STORE_KEY = 'catMascot_store_v1';     // 상점 상태 (presets / tools / accessories)
 
 // =============================
 // 1) 로컬 색상 패널 상태
@@ -30,7 +30,7 @@ const save = (st) => localStorage.setItem(STORE_KEY, JSON.stringify(st));
 // --- 색상 필터 ---
 const applyFilters = (st) => {
   const filter = `hue-rotate(${st.hue}deg) saturate(${st.sat}%) brightness(${st.bri}%) contrast(${st.con}%)`;
-  document.querySelectorAll('.shimeji-sprite').forEach(el => {
+  document.querySelectorAll('.catMascot-sprite').forEach(el => {
     el.style.filter  = filter;
     el.style.opacity = (st.opa / 100).toString();
   });
@@ -39,14 +39,14 @@ const applyFilters = (st) => {
 // --- 악세서리 적용: sprite.js 구조에 맞게 전역 상태 + 리프레시 ---
 function applyAccessoriesToSprites(accState) {
   // accState: { head: string|null, neck: string|null }
-  window.Shimeji = window.Shimeji || {};
+  window.catMascot = window.catMascot || {};
 
   // sprite.js 의 refreshAccessories() 가 읽는 전역 상태
-  window.Shimeji.activeAccessories = accState || {};
+  window.catMascot.activeAccessories = accState || {};
 
   // sprite.js 가 등록한 헬퍼가 있으면, 이미 떠 있는 스프라이트들에 즉시 반영
-  if (typeof window.Shimeji.refreshAccessoriesAll === 'function') {
-    window.Shimeji.refreshAccessoriesAll();
+  if (typeof window.catMascot.refreshAccessoriesAll === 'function') {
+    window.catMascot.refreshAccessoriesAll();
   }
 }
 
@@ -54,7 +54,7 @@ function applyAccessoriesToSprites(accState) {
 // 3) 패널 슬라이더 ↔ 상태 동기화
 // =============================
 function syncPanelSlidersTo(st) {
-  const panel = document.querySelector('.shimeji-color-panel');
+  const panel = document.querySelector('.catMascot-color-panel');
   if (!panel) return;
 
   const sync = (k) => {
@@ -88,7 +88,7 @@ function applyPresetFromShop(preset) {
 function buildPanel() {
   const st    = load();
   const panel = document.createElement('div');
-  panel.className = 'shimeji-color-panel';
+  panel.className = 'catMascot-color-panel';
   panel.style.display = 'none';
 
   panel.innerHTML = `
@@ -125,12 +125,12 @@ function buildPanel() {
     const style = document.createElement('style');
     style.id = '__cat_color_ui_style';
     style.textContent = `
-      .shimeji-color-panel .scp-header{padding:10px 12px;font-weight:600;display:flex;justify-content:space-between;align-items:center;cursor:grab}
-      .shimeji-color-panel .scp-actions button{background:transparent;border:none;color:#ddd;font-size:12px;cursor:pointer;margin-left:6px}
-      .shimeji-color-panel .scp-row{display:grid;grid-template-columns:36px 1fr 48px;gap:8px;align-items:center;padding:6px 12px}
-      .shimeji-color-panel .scp-row input[type="range"]{width:100%}
-      .shimeji-color-panel .scp-row .v{text-align:right;color:#bdbdbd}
-      .shimeji-color-panel .scp-foot{padding:8px 12px;color:#9aa0a6;font-size:11px;border-top:1px solid rgba(255,255,255,0.08)}
+      .catMascot-color-panel .scp-header{padding:10px 12px;font-weight:600;display:flex;justify-content:space-between;align-items:center;cursor:grab}
+      .catMascot-color-panel .scp-actions button{background:transparent;border:none;color:#ddd;font-size:12px;cursor:pointer;margin-left:6px}
+      .catMascot-color-panel .scp-row{display:grid;grid-template-columns:36px 1fr 48px;gap:8px;align-items:center;padding:6px 12px}
+      .catMascot-color-panel .scp-row input[type="range"]{width:100%}
+      .catMascot-color-panel .scp-row .v{text-align:right;color:#bdbdbd}
+      .catMascot-color-panel .scp-foot{padding:8px 12px;color:#9aa0a6;font-size:11px;border-top:1px solid rgba(255,255,255,0.08)}
     `;
     document.head.appendChild(style);
   }
@@ -211,7 +211,7 @@ async function openPanel() {
     if (!unlocked) return;
   } catch {}
 
-  let panel = document.querySelector('.shimeji-color-panel');
+  let panel = document.querySelector('.catMascot-color-panel');
   if (!panel) panel = buildPanel();
   panel.style.display = 'block';
 
@@ -232,7 +232,7 @@ addEventListener('keydown', async (e) => {
 
   if (!unlocked) return;
 
-  let panel = document.querySelector('.shimeji-color-panel');
+  let panel = document.querySelector('.catMascot-color-panel');
   if (!panel) panel = buildPanel();
   const willShow = panel.style.display === 'none';
   panel.style.display = willShow ? 'block' : 'none';
@@ -294,14 +294,14 @@ chrome.runtime?.onMessage?.addListener((msg) => {
   window.__cat_color_spawn_wrapped__ = true;
 
   const tryWrap = () => {
-    if (!window.Shimeji || typeof window.Shimeji.spawn !== 'function') return false;
-    const old = window.Shimeji.spawn;
-    window.Shimeji.spawn = function(...args){
+    if (!window.catMascot || typeof window.catMascot.spawn !== 'function') return false;
+    const old = window.catMascot.spawn;
+    window.catMascot.spawn = function(...args){
       const s = old.apply(this, args);
       // 새로 생성된 시메지에도 색상 + 악세서리 동기화
       applyFilters(load());
-      if (window.Shimeji.activeAccessories) {
-        applyAccessoriesToSprites(window.Shimeji.activeAccessories);
+      if (window.catMascot.activeAccessories) {
+        applyAccessoriesToSprites(window.catMascot.activeAccessories);
       }
       return s;
     };

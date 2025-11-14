@@ -6,13 +6,13 @@ const on  = (el, ev, fn) => el && el.addEventListener(ev, fn);
 const off = (el, ev, fn) => el && el.removeEventListener(ev, fn);
 
 // CHG: 포인트는 전부 background 권위 경로로 호출
-import { Points, bindBalanceUpdates } from '../shimeji/points_client.js';
+import { Points, bindBalanceUpdates } from '../cat-mascot/points_client.js';
 
 /** 디버그 모드: true 일 때만 +100 / -100 / 초기화 버튼 노출·동작 */
 const DEBUG_SHOP_POINTS = false;
 
 /* Storage / Items (포인트 제외한 상점 상태만 로컬에 저장) */
-const STORE_KEY = 'shimeji_store_v1';
+const STORE_KEY = 'catMascot_store_v1';
 
 const BASE_PRESET = { id: 'cat_default', hue: 0,   sat: 120, bri: 100, con: 100, opa: 100 };
 const DEFAULT_STATE = {

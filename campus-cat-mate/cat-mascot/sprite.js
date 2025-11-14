@@ -1,11 +1,11 @@
-// ==== shimeji/sprite.js ====
-console.log('[Shimeji] sprite loaded');
+// ==== cat-mascot/sprite.js ====
+console.log('[catMascot] sprite loaded');
 
-window.Shimeji = window.Shimeji || {};
+window.catMascot = window.catMascot || {};
 
 // config 에서 악세서리 정의 가져오기 (없으면 빈 객체)
 const ACCESSORY_CONF =
-  (window.Shimeji.conf && window.Shimeji.conf.accessories) || {};
+  (window.catMascot.conf && window.catMascot.conf.accessories) || {};
 
 // 슬롯 목록 (neck, head 확장 가능)
 const ACCESSORY_SLOTS = ['neck', 'head'];
@@ -17,7 +17,7 @@ class Sprite {
     this.state = 'walk'; // 'walk' | 'sit' | 'jump'
 
     this.root = document.createElement('div');
-    this.root.className = 'shimeji-sprite';
+    this.root.className = 'catMascot-sprite';
     Object.assign(this.root.style, {
       position: 'fixed',
       width: `${conf.frameW}px`,
@@ -88,10 +88,10 @@ class Sprite {
     return { w: this.conf.frameW, h: this.conf.frameH };
   }
 
-  // sprite 외부에서 Shimeji.activeAccessories 를 갱신해두면,
+  // sprite 외부에서 catMascot.activeAccessories 를 갱신해두면,
   // 이 메서드를 호출해서 슬롯들을 다시 구성할 수 있다.
   refreshAccessories() {
-    const active = (window.Shimeji && window.Shimeji.activeAccessories) || {};
+    const active = (window.catMascot && window.catMascot.activeAccessories) || {};
 
     // 기존 DOM 제거
     Object.values(this.accessories).forEach(({ el }) => el.remove());
@@ -288,7 +288,7 @@ class Sprite {
     // 요소 기반 바닥
     const xMid  = this.x + this.conf.frameW / 2;
     const footY = this.y + (this.state==='jump'?this.conf.jframeH:this.conf.frameH);
-    const ground = Shimeji.groundAt(xMid, footY);
+    const ground = catMascot.groundAt(xMid, footY);
 
     const worldFloor = ground ? ground.y : innerHeight;
     const maxY = worldFloor - (this.state==='jump'?this.conf.jframeH:this.conf.frameH);
@@ -336,10 +336,10 @@ class Sprite {
 }
 
 // 외부 노출
-Shimeji.Sprite = Sprite;
+catMascot.Sprite = Sprite;
 
 // 전역에서 장착 상태 바뀔 때 호출해 쓰라고 helper 하나 추가
-Shimeji.refreshAccessoriesAll = function() {
-  if (!Shimeji.sprites) return;
-  Shimeji.sprites.forEach(s => s.refreshAccessories && s.refreshAccessories());
+catMascot.refreshAccessoriesAll = function() {
+  if (!catMascot.sprites) return;
+  catMascot.sprites.forEach(s => s.refreshAccessories && s.refreshAccessories());
 };

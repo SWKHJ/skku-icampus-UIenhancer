@@ -1,11 +1,11 @@
-// ==== shimeji/config.js ====
-console.log('[Shimeji] config loaded');
+// ==== cat-mascot/config.js ====
+console.log('[catMascot] config loaded');
 
-window.Shimeji = window.Shimeji || {};
+window.catMascot = window.catMascot || {};
 
 const scale = 0.5;
 
-Shimeji.conf = {
+catMascot.conf = {
   scale,
 
   // ----- 기본 스프라이트 시트 설정 -----

@@ -1,3 +1,4 @@
+//dday_badge.js
 const CFG = {
   DAY_HEADER_SELECTOR: 'h2, h3',
   DAY_SECTION_HINT: '[class*="Day-styles__root"]',

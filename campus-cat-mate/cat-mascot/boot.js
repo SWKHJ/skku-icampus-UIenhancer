@@ -1,19 +1,19 @@
-// ==== shimeji/boot.js ====
-console.log('[Shimeji] boot loaded on', location.href);
+// ==== cat-mascot/boot.js ====
+console.log('[catMascot] boot loaded on', location.href);
 
-window.Shimeji = window.Shimeji || {};
-const { conf } = Shimeji;
+window.catMascot = window.catMascot || {};
+const { conf } = catMascot;
 
-Shimeji.sprites = [];
+catMascot.sprites = [];
 
-Shimeji.spawn = function() {
-  const s = new Shimeji.Sprite(conf.sprite, conf.motion);
-  Shimeji.sprites.push(s);
+catMascot.spawn = function() {
+  const s = new catMascot.Sprite(conf.sprite, conf.motion);
+  catMascot.sprites.push(s);
   return s;
 };
 
-Shimeji.clear = function() {
-  while (Shimeji.sprites.length) Shimeji.sprites.pop().destroy();
+catMascot.clear = function() {
+  while (catMascot.sprites.length) catMascot.sprites.pop().destroy();
 };
 
 (function loop() {
@@ -22,17 +22,17 @@ Shimeji.clear = function() {
     const now = performance.now();
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
-    for (const s of Shimeji.sprites) s.step(dt);
+    for (const s of catMascot.sprites) s.step(dt);
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
 })();
 
 // 초기 실행 (중복 방지)
-if (!window.__shimejiBooted__) {
-  window.__shimejiBooted__ = true;
-  Shimeji.spawn();
-  if (Shimeji.initColorUI) Shimeji.initColorUI();
+if (!window.__catMascotBooted__) {
+  window.__catMascotBooted__ = true;
+  catMascot.spawn();
+  if (catMascot.initColorUI) catMascot.initColorUI();
 }
 
 // ==== boot.js ==== (기존 부트 하단 어느 곳이나 OK)
@@ -66,9 +66,9 @@ function set_walk(s)
 
 // 새로고침 직후에 실행해야 할 액션이 있으면 꺼내서 실행
 (function resumeAfterSubmission(){
-    // window.Shimeji.sprites.forEach(s => set_jump(s));
-    // setTimeout(() => window.Shimeji.sprites.forEach(s => set_walk(s)), 4000);
-    const raw = sessionStorage.getItem('__shimeji_afterSubmission');
+    // window.catMascot.sprites.forEach(s => set_jump(s));
+    // setTimeout(() => window.catMascot.sprites.forEach(s => set_walk(s)), 4000);
+    const raw = sessionStorage.getItem('__catMascot_afterSubmission');
     console.log(raw);
     if (!raw) return;
     console.log("aaa");
@@ -78,25 +78,25 @@ function set_walk(s)
         const data = JSON.parse(raw);
         if (Date.now() - (data.t || 0) < 10_000) {
         // 원하는 액션 실행
-        if (window.Shimeji?.sprites?.length) {
-            window.Shimeji.sprites.forEach(s => set_jump(s));
-            setTimeout(() => window.Shimeji.sprites.forEach(s => set_walk(s)), 4000);
+        if (window.catMascot?.sprites?.length) {
+            window.catMascot.sprites.forEach(s => set_jump(s));
+            setTimeout(() => window.catMascot.sprites.forEach(s => set_walk(s)), 4000);
         } else {
             // 부트 타이밍 대비
             setTimeout(() => {
-            if (window.Shimeji?.sprites?.length) {
-                window.Shimeji.sprites.forEach(s => set_jump(s));
-                setTimeout(() => window.Shimeji.sprites.forEach(s => set_walk(s)), 4000);
+            if (window.catMascot?.sprites?.length) {
+                window.catMascot.sprites.forEach(s => set_jump(s));
+                setTimeout(() => window.catMascot.sprites.forEach(s => set_walk(s)), 4000);
             }
             }, 300);
         }
         }
     } catch {}
     // 한 번 사용 후 제거
-    sessionStorage.removeItem('__shimeji_afterSubmission');
+    sessionStorage.removeItem('__catMascot_afterSubmission');
 })();
 
 
 // 디버그/외부 제어용
-window.__spawnShimeji = () => Shimeji.spawn();
-window.__clearShimeji = () => Shimeji.clear();
+window.__spawncatMascot = () => catMascot.spawn();
+window.__clearcatMascot = () => catMascot.clear();

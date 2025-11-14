@@ -8,7 +8,7 @@ import {
   settleOnStartup
 } from './timer.js';
 
-import * as PointsToken from './shimeji/points_token.js';
+import * as PointsToken from './cat-mascot/points_token.js';
 // ⬆⬆⬆ 여기까지 새로 추가
 
 // 0) 컨텍스트 메뉴: 선택 텍스트에서만 노출
@@ -79,7 +79,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       if (msg?.type === 'INJECT_PAGE_HOOK' && sender.tab?.id != null) {
         chrome.scripting.executeScript({
           target: { tabId: sender.tab.id },
-          files: ['shimeji/page_hook.js'],
+          files: ['cat-mascot/page_hook.js'],
           world: 'MAIN'
         });
       }

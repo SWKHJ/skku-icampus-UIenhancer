@@ -1,4 +1,4 @@
-// ==== shimeji/script_watch.js ====
+// ==== cat-mascot/script_watch.js ====
 // A) 페이지 훅(Main world) 주입 요청 (제출 감지용)
 // B) 제출 연관 스크립트/요청 감지 → 축하 애니메이션 (기존 유지)
 // C) 접속 보상 +5pt (디버그: 방문마다 / 일반: 하루 1회)
@@ -8,8 +8,8 @@
 
 (() => {
   // --------- 상수/도우미 ----------
-  const STORE_KEY = 'shimeji_store_v1';           // 상점 상태 저장(포인트 제외)
-  const DEBUG_KEY = 'shimeji_debug_flags_v1';     // 디버그 플래그 저장소
+  const STORE_KEY = 'catMascot_store_v1';           // 상점 상태 저장(포인트 제외)
+  const DEBUG_KEY = 'catMascot_debug_flags_v1';     // 디버그 플래그 저장소
   const RE_SCRIPT = /\/dist\/webpack-production\/submit_assignment-[^/]+\.js(\?|#|$)/i;
   const RE_REQ    = /(^|\/)submissions?(\/|\.|$)/i;
 
@@ -93,7 +93,7 @@
     if (now - last < COOLDOWN_MS) return; // 쏟아지는 중복 차단
     seen.set(key, now);
 
-    sessionStorage.setItem('__shimeji_afterSubmission', JSON.stringify({
+    sessionStorage.setItem('__catMascot_afterSubmission', JSON.stringify({
       t: now, url, phase
     }));
   }
@@ -102,7 +102,7 @@
   window.addEventListener('message', (e) => {
     if (e.source !== window) return;
     const d = e.data;
-    if (!d || d.type !== '__shimeji_req') return;
+    if (!d || d.type !== '__catMascot_req') return;
 
     const url = d.url || '';
     const phase = (d.phase || '').toLowerCase();

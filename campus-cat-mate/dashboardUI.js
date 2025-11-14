@@ -1,4 +1,4 @@
-// content.js v4.0 — iCampus: "완료 항목 펼치기"만 제공 (안정/초간단)
+// dashboardUI.js v4.0 — iCampus: "완료 항목 펼치기"만 제공 (안정/초간단)
 ;(function () {
   // 캘린더 페이지에서는 아무것도 하지 않음
   //if (/^\/calendar\b/.test(location.pathname)) return;

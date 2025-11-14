@@ -1,5 +1,5 @@
 // ===== popup.js (hardened storage + import retry + focus + settings pane wired + global points header) =====
-import { Points, bindBalanceUpdates } from './shimeji/points_client.js'; // [NEW]
+import { Points, bindBalanceUpdates } from './cat-mascot/points_client.js'; // [NEW]
 
 const $id = (id) => document.getElementById(id);
 const on  = (el, ev, fn) => el && el.addEventListener(ev, fn);

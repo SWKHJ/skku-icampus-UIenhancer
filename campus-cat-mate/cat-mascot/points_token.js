@@ -1,4 +1,4 @@
-// ===== shimeji/points_token.js (revised: persistent balance + signed short-lived token) =====
+// ===== cat-mascot/points_token.js (revised: persistent balance + signed short-lived token) =====
 const PTS_KEY    = 'pts:key_b64';
 const PTS_TOKEN  = 'pts:token';
 const PTS_BAL    = 'pts:balance';   // [NEW] 영구 잔액 저장소

@@ -1,7 +1,7 @@
-// ==== shimeji/grounds.js ====
-console.log('[Shimeji] grounds loaded');
+// ==== cat-mascot/grounds.js ====
+console.log('[catMascot] grounds loaded');
 
-window.Shimeji = window.Shimeji || {};
+window.catMascot = window.catMascot || {};
 
 const GROUND_SELECTORS = [
   // 네가 타겟팅하고 싶은 요소를 자유롭게 추가
@@ -18,7 +18,7 @@ const GROUND_SELECTORS = [
   'video','img','canvas',
 
   // 명시적 지정
-  '[data-shimeji-ground]', '.shimeji-ground'
+  '[data-catMascot-ground]', '.catMascot-ground'
 ];
 
 let GROUNDS = [];
@@ -70,7 +70,7 @@ function rebuildGrounds() {
   GROUNDS = uniq;
 
   // 디버그 로그 (원하면 주석 처리)
-  console.groupCollapsed(`[Shimeji] Found ${uniq.length} ground elements`);
+  console.groupCollapsed(`[catMascot] Found ${uniq.length} ground elements`);
   uniq.forEach((el, i) => console.log(`#${i}`, el, el.getBoundingClientRect()));
   console.groupEnd();
 }
@@ -91,8 +91,8 @@ function groundAt(xMid, footY) {
 }
 
 // 외부 노출
-Shimeji.rebuildGrounds = rebuildGrounds;
-Shimeji.groundAt = groundAt;
+catMascot.rebuildGrounds = rebuildGrounds;
+catMascot.groundAt = groundAt;
 
 // 자동 갱신
 let rebuildTimer = null;

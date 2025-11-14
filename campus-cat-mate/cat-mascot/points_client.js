@@ -1,4 +1,4 @@
-// ===== shimeji/points_client.js (safe version) =====
+// ===== cat-mascot/points_client.js (safe version) =====
 
 // 내부 유틸: sendMessage + timeout
 function safeMessage(msg, timeoutMs = 300) {
