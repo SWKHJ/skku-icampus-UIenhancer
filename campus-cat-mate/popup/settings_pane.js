@@ -144,7 +144,9 @@ function buildDailySummaryCSV(logs, startMs, endMs) {
 
 /* --------------- download --------------- */
 async function downloadCSV(csvText, baseName) {
-  const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8' });
+   // UTF-8 BOM 추가
+  const BOM = '\uFEFF';
+  const blob = new Blob([BOM, csvText], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   try {
     await chrome.downloads.download({

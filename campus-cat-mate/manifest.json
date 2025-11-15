@@ -11,17 +11,33 @@
     "default_popup": "popup.html",
     "default_title": "Cat Custom Shop / Study Timer"
   },
-  "permissions": ["storage", "scripting", "alarms", "contextMenus", "offscreen", "downloads"],
+
+  "permissions": [
+    "storage",
+    "scripting",
+    "alarms",
+    "contextMenus",
+    "offscreen",
+    "downloads"
+  ],
+
   "host_permissions": [
-    "<all_urls>",
+    "https://*/*",
+    "http://*/*",
     "https://canvas.skku.edu/dist/webpack-production/submit_assignment-*.js*"
   ],
-  "icons": { "16": "icon.png", "48": "icon.png", "128": "icon.png" },
+
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  },
+
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      
+      "matches": ["https://*/*", "http://*/*"],
       "js": [
-        "cat-mascot/script_watch.js",
         "cat-mascot/config.js",
         "cat-mascot/ground.js",
         "cat-mascot/sprite.js",
@@ -31,25 +47,38 @@
       "run_at": "document_idle"
     },
     {
+      
+      "matches": ["https://canvas.skku.edu/*"],
+      "js": ["cat-mascot/script_watch.js"],
+      "run_at": "document_idle"
+    },
+    {
+      
       "matches": ["https://canvas.skku.edu/calendar*"],
       "js": ["calendarUI.js"],
       "css": ["calendarUI.css"],
       "run_at": "document_idle"
     },
     {
+      
       "matches": ["https://canvas.skku.edu/*"],
       "js": ["dashboardUI.js"],
       "css": ["dashboardUI.css"],
       "run_at": "document_idle"
     },
     {
+    
       "matches": ["https://canvas.skku.edu/*"],
       "js": ["dday_badge.js"],
       "css": ["dday_badge.css"],
       "run_at": "document_start"
     }
   ],
+
   "web_accessible_resources": [
-    { "resources": ["assets/*"], "matches": ["<all_urls>"] }
+    {
+      "resources": ["assets/*"],
+      "matches": ["https://*/*", "http://*/*"]
+    }
   ]
 }
