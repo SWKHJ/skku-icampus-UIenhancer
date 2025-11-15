@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Campus Cat Mate",
   "version": "1.0.0",
-  "description": "iCampus 대시보드·캘린더 개선 + 고양이 공부 도우미(포인트·상점·타이머)를 제공하는 크롬 확장 프로그램입니다.",
+  "description": "성균관대학교 iCampus의 대시보드·캘린더 UX를 개선하고, 공부 타이머와 고양이 마스코트 기능을 제공하는 확장 프로그램입니다.",
   "background": {
     "service_worker": "background.js",
     "type": "module"
