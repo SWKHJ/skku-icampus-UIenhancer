@@ -1,5 +1,5 @@
 # Campus Cat Mate – Privacy Policy
-_Last updated: 2025-01-XX_
+_Last updated: 2025-11-15_
 
 Campus Cat Mate는 성균관대학교 iCampus(캔버스)의 대시보드·캘린더 UI 개선 기능과  
 공부 타이머 및 고양이 마스코트 기능을 제공하는 Chrome 확장 프로그램입니다.
