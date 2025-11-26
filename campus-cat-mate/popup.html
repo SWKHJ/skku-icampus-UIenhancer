@@ -65,6 +65,20 @@
   <!-- ===== SETTINGS ===== -->
   <section id="pane-settings" class="pane" hidden role="tabpanel" aria-labelledby="tabSettings">
     <div class="settings">
+
+      <!-- 0. 마스코트 설정 -->
+      <h3 class="set-hdr">고양이 마스코트</h3>
+      <label class="toggle-line">
+        <input type="checkbox" id="shimejiEnabled" />
+        <div>
+          <div class="toggle-desc">
+            화면 하단을 돌아다니는 고양이 마스코트가 나타납니다. <br />
+            끄면 새 탭을 열 때 나타나지 않고, 
+            기존 탭도 새로 고침 시 고양이가 등장하지 않습니다.
+          </div>
+        </div>
+      </label>
+
       <!-- A. 데이터 내보내기 -->
       <h3 class="set-hdr">데이터 내보내기</h3>
 
@@ -127,7 +141,7 @@
         <p id="deleteHint" class="hint"></p>
       </div>
 
-      <!-- C. 정책 -->
+      <!-- C. 데이터 · 프라이버시 · 보관 정책 -->
       <details class="accordion">
         <summary>데이터 · 프라이버시 · 보관 정책</summary>
         <div class="acc-body">
@@ -139,15 +153,28 @@
         </div>
       </details>
 
-      <!-- D. 앱 정보 · 문의 -->
+      <!-- D. 이용 시 주의사항 · 책임 범위 -->
+      <details class="accordion">
+        <summary>이용 시 주의사항 · 책임 범위</summary>
+        <div class="acc-body">
+          <ul class="bullet">
+            <li>본 확장 프로그램은 I-Campus 시스템과 공식적으로 연동된 제품이 아닙니다.</li>
+            <li>확장 프로그램 사용으로 인해 발생할 수 있는 문제에 대하여 제작자는 책임을 지지 않습니다.</li>
+            <li>사용자는 평가 환경(시험·퀴즈 등)에서 필요한 경우 확장 프로그램 활성화 여부를 스스로 관리해야 합니다.</li>
+            <li>I-Campus 및 학교 규정을 준수한 상태에서 확장 프로그램을 사용해야 합니다.</li>
+          </ul>
+        </div>
+      </details>
+
+      <!-- E. 앱 정보 · 문의 -->
       <details class="accordion">
         <summary>앱 정보 · 문의</summary>
         <div class="acc-body">
           <ul class="bullet">
             <li>버전: <span id="appVer">–</span></li>
-            <li>제작: Cat Custom Shop · Study Timer</li>
-            <li>문의: <a href="mailto:contact@example.com">contact@example.com</a></li>
-            <li>소스/이슈: <a href="https://github.com/your-repo" target="_blank" rel="noopener">GitHub</a></li>
+            <!-- 여기 문의/소스 링크는 나중에 네가 실제 값으로 교체 -->
+            <li>문의: <a href="mailto:9rlaguswnd8@gmail.com">9rlaguswnd8@gmail.com</a></li>
+            <li>소스/이슈: <a href="https://github.com/SWKHJ/skku-icampus-UIenhancer" target="_blank" rel="noopener">GitHub</a></li>
           </ul>
         </div>
       </details>
@@ -155,6 +182,5 @@
   </section>
 
   <script type="module" src="popup.js"></script>
-  
 </body>
 </html>

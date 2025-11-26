@@ -1,9 +1,12 @@
 // ===== popup/settings_pane.js =====
 // Settings 탭: CSV 내보내기(원시/일간) + 범위 검증 + 날짜 역전 시 버튼 비활성화
 //           + "N일 이전 삭제" / "모든 로그 삭제"
-// 의존: chrome.downloads, ../timer.js(getState, setState)
+//           + 고양이 마스코트 ON/OFF 설정
+// 의존: chrome.downloads, chrome.storage, ../timer.js(getState, setState)
 
 import { getState, setState } from '../timer.js';
+
+const PREF_KEY = 'shimeji_prefs_v1';
 
 let root = null;
 
@@ -19,7 +22,15 @@ let btnDeleteOlder = null;
 let btnDeleteAll = null;
 let deleteHint = null;
 
+// mascot
+let chkMascot = null;
+
+// 이벤트 추적
 const bound = [];
+
+// 개별 핸들러 참조 (unbind용)
+let onExportClick = null;
+let onMascotChange = null;
 
 /* --------------- helpers --------------- */
 const on  = (el, ev, fn) => el && el.addEventListener(ev, fn);
@@ -214,6 +225,39 @@ async function doDeleteAll() {
   showDeleteHint('모든 원시 로그를 삭제했습니다.');
 }
 
+/* --------------- Mascot helpers --------------- */
+
+function broadcastMascotToggle(enabled) {
+  try {
+    // I-Campus 탭들에만 보내기
+    chrome.tabs.query({ url: '*://canvas.skku.edu/*' }, (tabs) => {
+      for (const tab of tabs) {
+        try {
+          chrome.tabs.sendMessage(tab.id, {
+            type: 'SHIMEJI_TOGGLE',
+            enabled: !!enabled
+          });
+        } catch {}
+      }
+    });
+  } catch {}
+}
+
+function loadMascotPrefs() {
+  if (typeof chrome === 'undefined' || !chrome.storage?.local) {
+    if (chkMascot) chkMascot.checked = true;
+    return;
+  }
+  try {
+    chrome.storage.local.get(PREF_KEY, (data) => {
+      const prefs = data[PREF_KEY] || { enabled: true };
+      if (chkMascot) chkMascot.checked = prefs.enabled !== false;
+    });
+  } catch {
+    if (chkMascot) chkMascot.checked = true;
+  }
+}
+
 /* --------------- UI hint --------------- */
 function showHint(text, isWarn = false) {
   if (!hint) return;
@@ -243,6 +287,8 @@ export async function initPane(rootEl) {
   btnDeleteAll   = root.querySelector('#btnDeleteAll');
   deleteHint     = root.querySelector('#deleteHint');
 
+  chkMascot = root.querySelector('#shimejiEnabled');
+
   // 날짜 기본값
   try {
     const st = await getState();
@@ -263,23 +309,48 @@ export async function initPane(rootEl) {
   }
 
   updateExportValidity();
+  loadMascotPrefs();
 
   // 바인딩
-  on(elStart, 'change', updateExportValidity); bound.push({el:elStart, ev:'change', fn:updateExportValidity});
-  on(elEnd,   'change', updateExportValidity); bound.push({el:elEnd,   ev:'change', fn:updateExportValidity});
+  on(elStart, 'change', updateExportValidity);
+  bound.push({el:elStart, ev:'change', fn:updateExportValidity});
 
-  on(btnExportGo, 'click', async () => {
+  on(elEnd,   'change', updateExportValidity);
+  bound.push({el:elEnd,   ev:'change', fn:updateExportValidity});
+
+  // Export 버튼 클릭 핸들러
+  onExportClick = async () => {
     const kind = (modeDaily && modeDaily.checked) ? 'daily' : 'raw';
     await doExport(kind);
-  }); bound.push({el:btnExportGo, ev:'click', fn:() => {}}); // 추적용
+  };
+  on(btnExportGo, 'click', onExportClick);
+  bound.push({ el: btnExportGo, ev: 'click', fn: onExportClick });
 
-  on(btnDeleteOlder, 'click', doDeleteOlder); bound.push({el:btnDeleteOlder, ev:'click', fn:doDeleteOlder});
-  on(btnDeleteAll,   'click', doDeleteAll);   bound.push({el:btnDeleteAll,   ev:'click', fn:doDeleteAll});
+  on(btnDeleteOlder, 'click', doDeleteOlder);
+  bound.push({el:btnDeleteOlder, ev:'click', fn:doDeleteOlder});
+
+  on(btnDeleteAll,   'click', doDeleteAll);
+  bound.push({el:btnDeleteAll,   ev:'click', fn:doDeleteAll});
+
+  // Mascot 토글
+  onMascotChange = (e) => {
+    const enabled = !!e.target.checked;
+    try {
+      chrome.storage.local.set({ [PREF_KEY]: { enabled } });
+    } catch {}
+    broadcastMascotToggle(enabled);
+  };
+  on(chkMascot, 'change', onMascotChange);
+  bound.push({ el: chkMascot, ev:'change', fn:onMascotChange });
 }
 
 export function destroyPane() {
   bound.forEach(({el,ev,fn}) => off(el, ev, fn));
   bound.length = 0;
+
   root = elStart = elEnd = modeRaw = modeDaily = btnExportGo = hint = null;
   daysOlder = btnDeleteOlder = btnDeleteAll = deleteHint = null;
+  chkMascot = null;
+  onExportClick = null;
+  onMascotChange = null;
 }

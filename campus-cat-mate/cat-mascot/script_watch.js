@@ -5,11 +5,13 @@
 // D) 간단 토스트 UI
 // E) 과제 제출 성공(phase==='completed') 시 +10pt 지급  ← 유지
 // CHG: 포인트 증가는 전부 background에 메시지로 위임(서명 토큰 검증 경유)
+// F) 마스코트 ON/OFF 설정 → Main world(boot.js)로 브리지
 
 (() => {
   // --------- 상수/도우미 ----------
   const STORE_KEY = 'catMascot_store_v1';           // 상점 상태 저장(포인트 제외)
   const DEBUG_KEY = 'catMascot_debug_flags_v1';     // 디버그 플래그 저장소
+  const PREF_KEY  = 'shimeji_prefs_v1';             // 마스코트 설정 저장소
   const RE_SCRIPT = /\/dist\/webpack-production\/submit_assignment-[^/]+\.js(\?|#|$)/i;
   const RE_REQ    = /(^|\/)submissions?(\/|\.|$)/i;
 
@@ -33,19 +35,19 @@
     return st;
   }
   async function saveShop(st) {
-  // _meta 만 업데이트하고, 나머지 필드(ownedAccessories 등)는 그대로 보존
-  const obj  = await chrome.storage?.local.get(STORE_KEY);
-  const prev = obj?.[STORE_KEY] || {};
+    // _meta 만 업데이트하고, 나머지 필드(ownedAccessories 등)는 그대로 보존
+    const obj  = await chrome.storage?.local.get(STORE_KEY);
+    const prev = obj?.[STORE_KEY] || {};
 
-  const next = {
-    ...prev,
-    _meta: st._meta || prev._meta || {}
-    // owned, activeColorPreset, unlockedTools,
-    // ownedAccessories, equippedAccessories 등은 prev 그대로 유지
-  };
+    const next = {
+      ...prev,
+      _meta: st._meta || prev._meta || {}
+      // owned, activeColorPreset, unlockedTools,
+      // ownedAccessories, equippedAccessories 등은 prev 그대로 유지
+    };
 
-  await chrome.storage?.local.set({ [STORE_KEY]: next });
-}
+    await chrome.storage?.local.set({ [STORE_KEY]: next });
+  }
 
   async function loadDebugFlags() {
     const obj = await chrome.storage?.local.get(DEBUG_KEY);
@@ -73,6 +75,7 @@
   }
 
   // --------- A) Main world 훅 주입 ----------
+
   if (!window.__shim_hook_injected__) {
     window.__shim_hook_injected__ = true;
     try { chrome.runtime?.sendMessage?.({ type: 'INJECT_PAGE_HOOK' }); } catch {}
@@ -98,11 +101,20 @@
     }));
   }
 
-  // page_hook.js → postMessage 수신
+  // --------- page_hook.js / boot.js → postMessage 수신 ----------
   window.addEventListener('message', (e) => {
     if (e.source !== window) return;
     const d = e.data;
-    if (!d || d.type !== '__catMascot_req') return;
+    if (!d) return;
+
+    // ★ boot.js 준비 완료 신호 → 이때 설정값을 동기화
+    if (d.__from === 'CampusCatMate' && d.type === 'SHIMEJI_READY') {
+      syncInitialMascotState();
+      return;
+    }
+
+    // 제출 감지용 메시지만 처리
+    if (d.type !== '__catMascot_req') return;
 
     const url = d.url || '';
     const phase = (d.phase || '').toLowerCase();
@@ -117,7 +129,33 @@
     }
   });
 
-  // (기존 스크립트 감시 로직은 주석 상태 유지)
+  // --------- F) 마스코트 ON/OFF 브리지 ----------
+
+  function postMascotToggle(enabled) {
+    // Main world(boot.js)가 듣도록 페이지에 메시지 브로드캐스트
+    window.postMessage(
+      { __from: 'CampusCatMate', type: 'SHIMEJI_TOGGLE', enabled: !!enabled },
+      '*'
+    );
+  }
+
+  async function syncInitialMascotState() {
+    try {
+      const obj = await chrome.storage?.local.get(PREF_KEY);
+      const prefs = obj?.[PREF_KEY] || { enabled: true };
+      // 기본값: enabled === true
+      postMascotToggle(prefs.enabled !== false);
+    } catch {
+      // storage 실패 시에는 그냥 ON 으로 간주
+      postMascotToggle(true);
+    }
+  }
+
+  // popup/settings → content 로 오는 토글 메시지 브리지
+  chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (!msg || msg.type !== 'SHIMEJI_TOGGLE') return;
+    postMascotToggle(msg.enabled);
+  });
 
   // --------- C) 접속 보상 +5pt (디버그/일반) ----------
   function todayStr() {
@@ -153,11 +191,23 @@
     } catch {}
   }
 
-  // DOM 준비되면 접속 보상 처리
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', grantVisitBonus, { once: true });
-  } else {
+  // DOM 준비되면:
+  // - 접속 보상 처리
+  // - 약간 딜레이 후 한 번 더 마스코트 상태 동기화 시도
+  //   (boot.js 가 먼저/나중에 로드되는 모든 케이스 커버용)
+  function onReady() {
     grantVisitBonus();
+
+    // READY 메시지를 못 받는 레이스 케이스 대비용
+    setTimeout(() => {
+      syncInitialMascotState();
+    }, 200);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', onReady, { once: true });
+  } else {
+    onReady();
   }
 
   // (참고) 디버그 토글은 기존 주석 안내대로 storage에서 설정

@@ -4,7 +4,7 @@ console.log('[Cat] color UI loaded');
 window.catMascot = window.catMascot || {};
 
 const STORE_KEY      = '__cat_color_ui_v1';    // 이 파일(패널)이 쓰는 로컬 상태
-const SHOP_STORE_KEY = 'catMascot_store_v1';     // 상점 상태 (presets / tools / accessories)
+const SHOP_STORE_KEY = 'catMascot_store_v1';   // 상점 상태 (presets / tools / accessories)
 
 // =============================
 // 1) 로컬 색상 패널 상태
@@ -23,6 +23,27 @@ const load = () => {
 };
 const save = (st) => localStorage.setItem(STORE_KEY, JSON.stringify(st));
 
+// SHOP_STORE(activeColorPreset)에 색상 동기화
+function persistColorToShop(st) {
+  if (typeof chrome === 'undefined' || !chrome.storage?.local) return;
+  try {
+    chrome.storage.local.get(SHOP_STORE_KEY, (obj) => {
+      const prev = obj?.[SHOP_STORE_KEY] || {};
+      const next = {
+        ...prev,
+        activeColorPreset: {
+          hue: st.hue,
+          sat: st.sat,
+          bri: st.bri,
+          con: st.con,
+          opa: st.opa
+        }
+      };
+      chrome.storage.local.set({ [SHOP_STORE_KEY]: next });
+    });
+  } catch {}
+}
+
 // =============================
 // 2) 스프라이트에 색상 / 악세서리 적용 헬퍼
 // =============================
@@ -36,15 +57,11 @@ const applyFilters = (st) => {
   });
 };
 
-// --- 악세서리 적용: sprite.js 구조에 맞게 전역 상태 + 리프레시 ---
+// --- 악세서리 적용 ---
 function applyAccessoriesToSprites(accState) {
-  // accState: { head: string|null, neck: string|null }
   window.catMascot = window.catMascot || {};
-
-  // sprite.js 의 refreshAccessories() 가 읽는 전역 상태
   window.catMascot.activeAccessories = accState || {};
 
-  // sprite.js 가 등록한 헬퍼가 있으면, 이미 떠 있는 스프라이트들에 즉시 반영
   if (typeof window.catMascot.refreshAccessoriesAll === 'function') {
     window.catMascot.refreshAccessoriesAll();
   }
@@ -68,7 +85,6 @@ function syncPanelSlidersTo(st) {
   ['hue','sat','bri','con','opa'].forEach(sync);
 }
 
-// 상점 프리셋 → 색상/패널에 반영
 function applyPresetFromShop(preset) {
   if (!preset) return;
   const st = load();
@@ -78,6 +94,7 @@ function applyPresetFromShop(preset) {
   st.con = preset.con;
   st.opa = preset.opa;
   save(st);
+  persistColorToShop(st);
   applyFilters(st);
   syncPanelSlidersTo(st);
 }
@@ -98,9 +115,9 @@ function buildPanel() {
     </span></div>
     <div class="scp-row"><label>Hue</label><input type="range" min="0" max="360" value="${st.hue}" data-k="hue"><span class="v">${st.hue}</span></div>
     <div class="scp-row"><label>Sat</label><input type="range" min="0" max="300" value="${st.sat}" data-k="sat"><span class="v">${st.sat}%</span></div>
-    <div class="scp-row"><label>Bri</label><input type="range" min="50" max="200" value="${st.bri}" data-k="bri"><span class="v">${st.bri}%</span></div>
-    <div class="scp-row"><label>Con</label><input type="range" min="50" max="200" value="${st.con}" data-k="con"><span class="v">${st.con}%</span></div>
-    <div class="scp-row"><label>Opa</label><input type="range" min="20" max="100" value="${st.opa}" data-k="opa"><span class="v">${st.opa}%</span></div>
+    <div class="scp-row"><label>Bri</label><input type="range" min="0" max="200" value="${st.bri}" data-k="bri"><span class="v">${st.bri}%</span></div>
+    <div class="scp-row"><label>Con</label><input type="range" min="0" max="200" value="${st.con}" data-k="con"><span class="v">${st.con}%</span></div>
+    <div class="scp-row"><label>Opa</label><input type="range" min="0" max="100" value="${st.opa}" data-k="opa"><span class="v">${st.opa}%</span></div>
     <div class="scp-foot">Drag here · Ctrl+Shift+C toggle</div>
   `;
 
@@ -145,6 +162,7 @@ function buildPanel() {
       const cur = load();
       cur[k] = v;
       save(cur);
+      persistColorToShop(cur);
       applyFilters(cur);
       const out = inp.parentElement?.querySelector('.v');
       if (out) out.textContent = k === 'hue' ? v : (v + '%');
@@ -159,6 +177,7 @@ function buildPanel() {
     if (act === 'reset') {
       const reset = { ...defaults, x: cur.x, y: cur.y, open: true };
       save(reset);
+      persistColorToShop(reset);
       applyFilters(reset);
       syncPanelSlidersTo(reset);
     } else if (act === 'close') {
@@ -245,9 +264,6 @@ addEventListener('keydown', async (e) => {
 
 // =============================
 // 6) popup → content 메시지 처리
-//    - APPLY_COLOR_PRESET
-//    - OPEN_COLOR_TOOL
-//    - APPLY_ACCESSORIES
 // =============================
 chrome.runtime?.onMessage?.addListener((msg) => {
   if (msg?.type === 'APPLY_COLOR_PRESET' && msg.preset) {
@@ -255,7 +271,6 @@ chrome.runtime?.onMessage?.addListener((msg) => {
   } else if (msg?.type === 'OPEN_COLOR_TOOL') {
     openPanel();
   } else if (msg?.type === 'APPLY_ACCESSORIES') {
-    // shop_pane.js 에서 보내는 equipped 필드 우선
     applyAccessoriesToSprites(msg.equipped || msg.accessories || {});
   }
 });
@@ -264,26 +279,32 @@ chrome.runtime?.onMessage?.addListener((msg) => {
 // 7) 페이지 로드 시: 저장된 색상/악세서리 복원
 // =============================
 (async function initFromStorageOnLoad() {
+  let localState = load();
   try {
     const obj    = await chrome.storage?.local.get(SHOP_STORE_KEY);
-    const stShop = obj?.[SHOP_STORE_KEY];
-    const p      = stShop?.activeColorPreset;
+    const stShop = obj?.[SHOP_STORE_KEY] || {};
+    const p      = stShop.activeColorPreset;
 
-    // 색상
+    // SHOP 쪽에 activeColorPreset 이 있으면 그걸 우선
     if (p && typeof p.hue === 'number') {
-      applyPresetFromShop(p);
+      localState = { ...localState, ...p };
     } else {
-      applyFilters(load());
+      // 없으면 현재 localState 를 SHOP 쪽 기본값으로 밀어넣기
+      persistColorToShop(localState);
     }
 
-    // 악세서리 (equippedAccessories 우선, 예전 activeAccessories 폴백)
-    const acc = stShop?.equippedAccessories || stShop?.activeAccessories;
-    if (acc) {
-      applyAccessoriesToSprites(acc);
-    }
+    save(localState);
+    applyFilters(localState);
+
+    const acc = stShop.equippedAccessories || stShop.activeAccessories;
+    if (acc) applyAccessoriesToSprites(acc);
   } catch {
-    applyFilters(load());
+    save(localState);
+    applyFilters(localState);
   }
+
+  // 고양이가 뒤늦게 스폰된 경우를 대비해 한 번 더 적용
+  setTimeout(() => applyFilters(load()), 300);
 })();
 
 // =============================
@@ -298,13 +319,15 @@ chrome.runtime?.onMessage?.addListener((msg) => {
     const old = window.catMascot.spawn;
     window.catMascot.spawn = function(...args){
       const s = old.apply(this, args);
-      // 새로 생성된 시메지에도 색상 + 악세서리 동기화
-      applyFilters(load());
+      const st = load();
+      applyFilters(st);
       if (window.catMascot.activeAccessories) {
         applyAccessoriesToSprites(window.catMascot.activeAccessories);
       }
       return s;
     };
+    // 이미 떠 있는 스프라이트에도 한 번 반영
+    applyFilters(load());
     return true;
   };
 
@@ -312,4 +335,23 @@ chrome.runtime?.onMessage?.addListener((msg) => {
     const t = setInterval(() => { if (tryWrap()) clearInterval(t); }, 200);
     setTimeout(() => clearInterval(t), 5000);
   }
+})();
+
+// =============================
+// 9) 패널 오픈 상태 복원
+// =============================
+(function restorePanelOpenOnLoad() {
+  const st = load();
+  if (!st.open) return;
+
+  if (typeof chrome === 'undefined' || !chrome.storage?.local) return;
+  chrome.storage.local.get(SHOP_STORE_KEY, (obj) => {
+    const unlocked = !!obj?.[SHOP_STORE_KEY]?.unlockedTools?.color_tool;
+    if (!unlocked) return;
+
+    let panel = document.querySelector('.catMascot-color-panel');
+    if (!panel) panel = buildPanel();
+    panel.style.display = 'block';
+    syncPanelSlidersTo(load());
+  });
 })();
