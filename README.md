@@ -49,10 +49,10 @@
 
 ## 📸 스크린샷
 
-![고양이 마스코트 & 상점](./docs/cat-mascot-custom.jpg)
-![캘린더 개선 예시](./docs/calendar-before-after.jpg)
-![공부 타이머 예시](./docs/study-timer.jpg)
-![대시보드 D-Day 예시](./docs/d-day-badge.jpg)
+![고양이 마스코트 & 상점](./campus-cat-mate/docs/cat-mascot-custom.jpg)
+![캘린더 개선 예시](./campus-cat-mate/docs/calendar-before-after.jpg)
+![공부 타이머 예시](./campus-cat-mate/docs/study-timer.jpg)
+![대시보드 D-Day 예시](./campus-cat-mate/docs/d-day-badge.jpg)
 
 ---
 
